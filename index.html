@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{color-scheme:light}
+body{margin:0;font:14px system-ui,sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<title>รายงานศักยภาพการใช้จ่ายงบประมาณ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: เข้าสู่ระบบ -> เลือกกระทรวง/หน่วยงาน -> รายงาน 2 คอลัมน์แบบ A4 (กราฟซ้าย ตารางขวา ตาราง 5 + เรดาร์ด้านล่าง) */
+:root{
+  --bg:#eef1f6; --paper:#ffffff; --ink:#1b2430; --ink2:#51607a; --line:#cfd6e2; --rowline:#d9dee8;
+  --head:#bccbe3; --subhead:#dce6f5; --hl:#fdf5c4; --accent:#2f4f9d; --accent-ink:#ffffff;
+  --c-use:#36b3a8; --c-po:#2f2f33; --c-res:#f0716f; --c-lapse:#f2b705; --c-radar:#3b5bdb; --c-grid:#b9c2d3;
+  --err:#b3261e;
+  --font:'Sarabun','Noto Sans Thai','Tahoma',sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161d; --paper:#1b212b; --ink:#e8ecf3; --ink2:#9aa8c0; --line:#38425a; --rowline:#2d3649;
+  --head:#2c3d63; --subhead:#25314d; --hl:#4a4320; --accent:#8fb0ff; --accent-ink:#0f1626;
+  --c-use:#3cc1b5; --c-po:#cfd5df; --c-res:#f58886; --c-lapse:#f5c431; --c-radar:#8fb0ff; --c-grid:#4a5670;
+  --err:#ff8a80; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161d; --paper:#1b212b; --ink:#e8ecf3; --ink2:#9aa8c0; --line:#38425a; --rowline:#2d3649;
+  --head:#2c3d63; --subhead:#25314d; --hl:#4a4320; --accent:#8fb0ff; --accent-ink:#0f1626;
+  --c-use:#3cc1b5; --c-po:#cfd5df; --c-res:#f58886; --c-lapse:#f5c431; --c-radar:#8fb0ff; --c-grid:#4a5670;
+  --err:#ff8a80; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.5;
+  padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,select,input{font:inherit;color:inherit}
+.wrap{max-width:880px;margin:0 auto}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:28px}
+.gate{max-width:400px;margin:8vh auto 0}
+.gate h1,.pick h1{font-size:20px;line-height:1.3;margin:0 0 4px;font-weight:700;text-wrap:balance}
+.gate p,.pick p{margin:0 0 20px;color:var(--ink2)}
+label{display:block;font-weight:600;margin:14px 0 6px}
+.ctl{width:100%;height:42px;padding:0 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--ink)}
+.ctl:disabled{opacity:.55}
+.ctl:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{height:42px;padding:0 22px;border:0;border-radius:4px;background:var(--accent);color:var(--accent-ink);font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.err{color:var(--err);min-height:1.4em;margin:8px 0 0}
+.hint{font-size:12px;color:var(--ink2);margin-top:6px}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+/* report */
+.report{background:var(--paper);border:1px solid var(--line);padding:26px 24px 28px}
+.report h1{font-size:18px;text-align:center;margin:0 0 18px;font-weight:700;text-wrap:balance}
+.meta{font-weight:700;margin:0 0 6px;font-size:14px}
+.grid{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:14px 18px;margin-top:18px;align-items:start}
+.sec{min-width:0}
+.sec .scroll{overflow-x:auto}
+.ctitle{font-weight:700;text-align:center;font-size:12.5px;margin:4px 0 6px}
+table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;border-bottom:1px solid var(--rowline);vertical-align:middle}
+td.n,th.n{text-align:right;white-space:nowrap}
+thead th{font-weight:600;background:var(--subhead);text-align:right}
+thead th:first-child{text-align:left}
+.sh{background:var(--head);font-weight:700;font-size:13px;padding:8px 10px;text-align:left}
+tr.hl td{background:var(--hl)}
+tr.tot td{font-weight:700}
+.t5 th{text-align:center;background:var(--head)}
+.t5 td:first-child{text-align:left}
+.t5 td{text-align:center}
+.t5 td.n{text-align:right;padding-right:22px}
+.t5{border:1px solid var(--line)}
+.t5 td,.t5 th{border:1px solid var(--line)}
+.bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;margin-top:22px;align-items:center}
+.radarbox{border:1px solid var(--line);padding:6px}
+.note{margin-top:22px;font-size:12.5px}
+.note b{display:block;text-decoration:underline;margin-bottom:6px}
+.note p{margin:0 0 0 28px}
+svg{display:block;max-width:100%;height:auto}
+svg text{fill:var(--ink);font-family:var(--font)}
+.legend{display:grid;grid-template-columns:auto auto;gap:6px 18px;justify-content:center;font-size:11px;margin-top:4px}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px}
+@media (max-width:720px){
+  .grid,.bottom{grid-template-columns:minmax(0,1fr)}
+  .report{padding:18px 14px}
+  .card{padding:20px}
+}
+.t2 th,.t2 td{padding:6px 4px;font-size:11.5px}
+.note-in{height:auto;padding:8px 12px;resize:vertical;line-height:1.5}
+.notetxt{white-space:pre-wrap;margin-left:28px}
+.wm{margin-top:18px;font-size:11px;color:var(--ink2);opacity:.7;text-align:left}
+.report.pdf{--paper:#fff;--ink:#1b2430;--ink2:#51607a;--line:#cfd6e2;--rowline:#d9dee8;--head:#bccbe3;--subhead:#dce6f5;--hl:#fdf5c4;
+  --c-use:#36b3a8;--c-po:#2f2f33;--c-res:#f0716f;--c-lapse:#f2b705;--c-radar:#3b5bdb;--c-grid:#b9c2d3;color:var(--ink);border:0;padding:26px 24px 24px}
+.report.pdf .grid{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)}
+.report.pdf .bottom{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.switch{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr) minmax(0,1.6fr) auto;gap:10px;align-items:end;margin-bottom:10px;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:12px}
+.switch label{margin:0 0 4px;font-size:12px}
+.sw-b{display:flex}
+@media (max-width:720px){.switch{grid-template-columns:minmax(0,1fr)}}
+/* PDF: กระดาษ A4 พอดี 794x1123px แล้วกระจายเนื้อหาให้เต็มหน้า */
+.report.pdf{width:794px;height:1123px;padding:34px 30px 40px;display:flex;flex-direction:column;position:relative;overflow:hidden;font-size:10px;line-height:1.35}
+.report.pdf h1{font-size:15px;margin:0 0 12px}
+.report.pdf .meta{font-size:11.5px;margin:0 0 4px}
+.report.pdf table{font-size:9.6px}
+.report.pdf th,.report.pdf td{padding:3px 6px}
+.report.pdf .sh{font-size:10.5px;padding:5px 8px}
+.report.pdf .ctitle{font-size:10.5px}
+.report.pdf .legend{font-size:9px}
+.report.pdf .grid{flex:1 1 auto;align-content:space-between;margin-top:8px;gap:10px 16px}
+.report.pdf .bottom{margin-top:14px;flex:0 0 auto}
+.report.pdf .t2 th,.report.pdf .t2 td{padding:3px 3px;font-size:9px}
+.report.pdf .note{margin-top:14px;font-size:10px}
+.report.pdf .notetxt{margin-left:20px}
+.report.pdf .wm{position:absolute;left:30px;bottom:14px;margin:0;font-size:9px}
+.report.pdf .t2 .sh{font-size:10.5px;padding:5px 8px}
+.t2 .sh{font-size:13px;padding:8px 10px}
+.report.pdf .t5 td.n{padding-right:12px}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<div class="wrap">
+  <!-- 1. เข้าสู่ระบบ -->
+  <section id="vGate" class="card gate" hidden>
+    <h1>รายงานศักยภาพการใช้จ่ายงบประมาณ</h1>
+    <p>ปีงบประมาณ พ.ศ. 2569 · กรุณาใส่รหัสผ่านเพื่อเข้าใช้งาน</p>
+    <form id="fGate" autocomplete="off">
+      <label for="pw">รหัสผ่าน</label>
+      <input id="pw" class="ctl" type="password" autocomplete="current-password">
+      <div class="err" id="gateErr" role="alert"></div>
+      <div class="row"><button class="btn" type="submit">เข้าสู่ระบบ</button></div>
+    </form>
+  </section>
+
+  <!-- 2. เลือกหน่วยงาน -->
+  <section id="vPick" class="card gate" style="max-width:520px" hidden>
+    <h1>เลือกหน่วยงาน</h1>
+    <p>เลือกกระทรวงและหน่วยงาน แล้วกดแสดงผล</p>
+    <label for="selMin">กระทรวง</label>
+    <select id="selMin" class="ctl"></select>
+    <label for="qDept">หน่วยงาน</label>
+    <input id="qDept" class="ctl" type="search" placeholder="พิมพ์เพื่อค้นหารหัสหรือชื่อหน่วยงาน" disabled style="margin-bottom:8px">
+    <select id="selDept" class="ctl" disabled></select>
+    <div class="hint" id="deptCount"></div>
+    <div class="row">
+      <button class="btn" id="btnShow" disabled>แสดงผล</button>
+      <button class="btn ghost" id="btnOut" type="button">ออกจากระบบ</button>
+    </div>
+  </section>
+
+  <!-- 3. รายงาน -->
+  <section id="vRep" hidden>
+    <div class="switch">
+      <div class="sw-f"><label for="rMin">กระทรวง</label><select id="rMin" class="ctl"></select></div>
+      <div class="sw-f sw-q"><label for="rQ">ค้นหาหน่วยงาน</label><input id="rQ" class="ctl" type="search" placeholder="รหัสหรือชื่อ"></div>
+      <div class="sw-f sw-d"><label for="rDept">หน่วยงาน</label><select id="rDept" class="ctl"></select></div>
+      <div class="sw-b"><button class="btn" id="btnPdf" type="button" hidden>ดาวน์โหลด PDF</button></div>
+    </div>
+    <div class="hint" id="srcNote" style="margin-bottom:8px"></div>
+    <div class="report" id="report"></div>
+  </section>
+</div>
+
+<script>
+/* ===== ตั้งค่า ===== */
+const CONFIG = {
+  PASSWORD: "password",
+  FISCAL_YEAR: 2569,
+  DATA_URL: 'data.json',   // สร้างโดย scripts/build_data.py ตอน deploy
+};
+/* ข้อมูลจากไฟล์ Excel ชีท "ใช้งาน"
+   dept = [รหัส, ชื่อ, 1.1 พรบ., 1.2 สุทธิหลังโอน, 1.4 เบิกจ่าย, 1.5 PO, 1.6 สำรองเงิน, 1.7 ใช้จ่าย, 1.8 พับตก, 3.1 เงินกัน, 3.2 เบิกจ่ายเงินกัน, 3.2 ร้อยละ, โอน, พรบ โอน, วงเงินภายหลัง พ.ร.บ. โอน] */
+let DATA = [];
+/* ผลการดำเนินงาน (ข้อ 4) จากไฟล์ KPI_summary.xlsx (เฉพาะบางหน่วย หน่วยที่ไม่มีข้อมูล = 0)
+   PERF["01002"] = {pct: มิติตัวชี้วัดรวม (เฉลี่ย ไม่นับตัวที่ไม่มีผล), quant:[ทั้งหมด,บรรลุ,ไม่บรรลุ,ไม่มีผล,ร้อยละเฉลี่ย], qual:[..], time:[..], cost:[..]} */
+let PERF = {};
+
+/* ===== ตัวช่วย ===== */
+const $ = id => document.getElementById(id);
+const f4 = v => v.toLocaleString('en-US',{minimumFractionDigits:4,maximumFractionDigits:4});
+const f2 = v => v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = (a,b) => b ? a/b*100 : 0;
+const pick = (rules,v,up) => { for (const [t,s] of rules) if (up ? v>=t : v<=t) return s; return up ? 0 : 5; };
+const esc = s => String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function store(k,v){ try{ if(v===undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k,v);}catch(e){return null} }
+function show(id){ for (const v of ['vGate','vPick','vRep']) $(v).hidden = v!==id; }
+
+/* ===== เข้าสู่ระบบ ===== */
+$('fGate').addEventListener('submit', e=>{
+  e.preventDefault();
+  if ($('pw').value === CONFIG.PASSWORD){ store('auth','1'); $('gateErr').textContent=''; goPick(); }
+  else { $('gateErr').textContent='รหัสผ่านไม่ถูกต้อง กรุณาลองอีกครั้ง'; $('pw').select(); }
+});
+$('btnOut').onclick = ()=>{ store('auth','0'); $('pw').value=''; show('vGate'); $('pw').focus(); };
+
+/* ===== เลือกหน่วยงาน ===== */
+function goPick(){
+  show('vPick');
+  if (!$('selMin').options.length){
+    $('selMin').innerHTML = '<option value="">— เลือกกระทรวง —</option>' +
+      DATA.map((m,i)=>`<option value="${i}">${esc(m.code)} ${esc(m.name)}</option>`).join('');
+  }
+}
+function fillDeptList(minEl,qEl,deptEl,countEl,keep){
+  const mi = minEl.value;
+  if (mi===''){ deptEl.innerHTML=''; deptEl.disabled=qEl.disabled=true; if(countEl) countEl.textContent=''; return 0; }
+  const key = qEl.value.trim();
+  const list = DATA[mi].depts.filter(d=>!key || (d[0]+' '+d[1]).includes(key));
+  deptEl.innerHTML = (list.length? '' : '<option value="">ไม่พบหน่วยงาน</option>') +
+    list.map(d=>`<option value="${d[0]}">${esc(d[0])} ${esc(d[1])}</option>`).join('');
+  if (keep && list.some(d=>d[0]===keep)) deptEl.value = keep;
+  deptEl.disabled=qEl.disabled=false;
+  if (countEl) countEl.textContent = `${list.length.toLocaleString('en-US')} หน่วยงาน`;
+  return list.length;
+}
+function fillDepts(){ $('btnShow').disabled = !fillDeptList($('selMin'),$('qDept'),$('selDept'),$('deptCount')); }
+$('selMin').onchange = ()=>{ $('qDept').value=''; fillDepts(); };
+$('qDept').oninput = fillDepts;
+$('btnShow').onclick = ()=>{
+  const m = DATA[$('selMin').value]; const d = m.depts.find(x=>x[0]===$('selDept').value); if(!d) return;
+  show('vRep'); openReport(m,d);
+};
+/* สลับหน่วยงานในหน้ารายงานได้ทันที */
+function openReport(m,d){
+  const rMin=$('rMin');
+  if (!rMin.options.length) rMin.innerHTML = DATA.map((x,i)=>`<option value="${i}">${esc(x.code)} ${esc(x.name)}</option>`).join('');
+  rMin.value = DATA.indexOf(m); $('rQ').value='';
+  fillDeptList(rMin,$('rQ'),$('rDept'),null,d[0]);
+  render(m,d);
+}
+function reportPick(){ const m=DATA[$('rMin').value]; const d=m.depts.find(x=>x[0]===$('rDept').value); if(d) render(m,d); }
+$('rMin').onchange = ()=>{ $('rQ').value=''; if(fillDeptList($('rMin'),$('rQ'),$('rDept'),null)) reportPick(); };
+$('rQ').oninput = ()=>{ fillDeptList($('rMin'),$('rQ'),$('rDept'),null,CUR&&CUR.d[0]); };
+$('rDept').onchange = reportPick;
+
+/* ===== กราฟ ===== */
+function donutSVG(segs, centerNote){
+  const W=340,H=200,cx=170,cy=100,R=70,r=44, mid=(R+r)/2, sw=R-r, C=2*Math.PI*mid;
+  const total = segs.reduce((s,x)=>s+Math.max(0,x.v),0);
+  let g = '', off = 0, labels = [], acc = 0;
+  if (total<=0){
+    g = `<circle cx="${cx}" cy="${cy}" r="${mid}" fill="none" stroke="var(--c-grid)" stroke-opacity=".45" stroke-width="${sw}"/>`;
+  } else {
+    segs.forEach(s=>{
+      const v=Math.max(0,s.v); if(!v) return;
+      const len=v/total*C;
+      g += `<circle cx="${cx}" cy="${cy}" r="${mid}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 ${cx} ${cy})"><title>${esc(s.name)}: ${esc(s.text)}</title></circle>`;
+      const a=(acc+v/2)/total*2*Math.PI; acc+=v; off+=len;
+      labels.push({a,text:s.text,right:Math.sin(a)>=0});
+    });
+  }
+  // ป้ายพร้อมเส้นชี้ ป้องกันซ้อนทับโดยเว้นระยะแนวตั้ง
+  ['right','left'].forEach(side=>{
+    const L = labels.filter(l=>(l.right?'right':'left')===side).map(l=>({...l,y:cy-(R+14)*Math.cos(l.a)})).sort((a,b)=>a.y-b.y);
+    for(let i=1;i<L.length;i++) if(L[i].y-L[i-1].y<14) L[i].y=L[i-1].y+14;
+    L.forEach(l=>{
+      const p0=[cx+R*Math.sin(l.a),cy-R*Math.cos(l.a)], p1=[cx+(R+8)*Math.sin(l.a),cy-(R+8)*Math.cos(l.a)];
+      const x2=l.right?cx+R+26:cx-R-26;
+      g+=`<polyline points="${p0[0]},${p0[1]} ${p1[0]},${p1[1]} ${x2},${l.y}" fill="none" stroke="var(--ink)" stroke-width=".8"/>`+
+         `<text x="${x2+(l.right?4:-4)}" y="${l.y+3.5}" font-size="10" text-anchor="${l.right?'start':'end'}">${esc(l.text)}</text>`;
+    });
+  });
+  if (centerNote) g+=`<text x="${cx}" y="${cy+4}" font-size="10.5" text-anchor="middle" style="fill:var(--ink2)">${esc(centerNote)}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`;
+}
+function radarSVG(items){
+  const W=420,H=250,cx=210,cy=128,R=64,n=items.length;
+  const pt=(i,k)=>{const a=i/n*2*Math.PI;return [cx+k*R*Math.sin(a),cy-k*R*Math.cos(a)]};
+  let g='';
+  for(let l=1;l<=5;l++) g+=`<polygon points="${items.map((_,i)=>pt(i,l/5).join(',')).join(' ')}" fill="none" stroke="var(--c-grid)" stroke-width=".8"/>`;
+  items.forEach((_,i)=>{const p=pt(i,1);g+=`<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}" stroke="var(--c-grid)" stroke-width=".8"/>`});
+  g+=`<polygon points="${items.map((it,i)=>pt(i,it.max?it.score/it.max:0).join(',')).join(' ')}" fill="var(--c-radar)" fill-opacity=".12" stroke="var(--c-radar)" stroke-width="2.4" stroke-linejoin="round"/>`;
+  items.forEach((it,i)=>{
+    const a=i/n*2*Math.PI, s=Math.sin(a), c=Math.cos(a);
+    const x=cx+(R+12)*s, y=cy-(R+12)*c;
+    const anchor=Math.abs(s)<.2?'middle':(s>0?'start':'end');
+    const ny = c>.5? y-12 : (c<-.5? y+10 : y);
+    g+=`<text x="${x}" y="${ny}" font-size="10" font-weight="700" text-anchor="${anchor}">${esc(it.name)}</text>`;
+    const vy = c>.5? y-1 : (c<-.5? y+21 : y+12);
+    g+=`<text x="${x}" y="${vy}" font-size="10" text-anchor="${anchor}">${it.score}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="กราฟเรดาร์คะแนนมิติการประเมิน">${g}</svg>`;
+}
+
+/* ===== รายงาน ===== */
+let CUR = null;      // {m,d} หน่วยงานที่กำลังดู
+const r2 = x => Math.round(x*100)/100;
+/* สูตรคะแนนตามเกณฑ์การประเมินศักยภาพการใช้จ่ายงบประมาณ (ไฟล์เกณฑ์ที่แนบ) ใช้ร้อยละที่ปัดทศนิยม 2 ตำแหน่ง */
+const SCORE = {
+  disb: p => p<50 ? 0 : p>=97.5 ? 20 : Math.floor((p-50)/2.5+1e-9)+1,          // 5.1 เต็ม 20 ขั้นละ 2.50
+  step5: p => p<50 ? 0 : p>=95 ? 10 : Math.floor((p-50)/5+1e-9)+1,              // 5.2 และ 5.4 เต็ม 10 ขั้นละ 5.00
+  inv: p => p<=1 ? 10 : p>10 ? 0 : 10-Math.ceil(r2(p-1)-1e-9),                  // 5.3 และ 5.5 ยิ่งน้อยยิ่งดี
+  perf: p => p<50 ? 0 : p>=97.5 ? 40 : 2*(Math.floor((p-50)/2.5+1e-9)+1)        // 5.6 เต็ม 40
+};
+function calc(d){
+  const [code,name,v11,v12,v14,v15,v16,v17,v18x,v31,v32,p32x,xfer,pbx,afterPb] = d;
+  const hasPb = pbx!==0 && afterPb>0;
+  const base = hasPb ? afterPb : v12;
+  const LBL = hasPb ? 'วงเงิน หลัง พรบ โอน' : 'วงเงินหลังโอน';
+  const P = PERF[code] || {};
+  const pf = k => P[k] || [0,0,0,0,0];
+  const kinds = [['4.1 เชิงปริมาณ','quant'],['4.2 เชิงคุณภาพ','qual'],['4.3 เชิงเวลา','time'],['4.4 เชิงต้นทุน','cost']];
+  const pfTot = kinds.reduce((a,[,k])=>[a[0]+pf(k)[0],a[1]+pf(k)[1],a[2]+pf(k)[2],a[3]+pf(k)[3]],[0,0,0,0]);
+  const perfPct = r2(P.pct||0);
+  const v18 = base - v17;
+  const r14=r2(pct(v14,base)), r17=r2(pct(v17,base)), rx=r2(pct(xfer,base));
+  const hasCarry = v31>0;
+  const rc = hasCarry ? r2(pct(v32,v31)) : 0;
+  const rl = r2(100-r17);
+  const dims = [
+    {t:'5.1 มิติการเบิกจ่ายงบประมาณ (ข้อ 1.4)', v:f2(r14), max:20, s:SCORE.disb(r14), n:'มิติการเบิกจ่ายงบประมาณ'},
+    {t:'5.2 มิติการใช้จ่ายงบประมาณ (ข้อ 1.7)', v:f2(r17), max:10, s:SCORE.step5(r17), n:'มิติการใช้จ่ายงบประมาณ'},
+    {t:'5.3 มิติการโอนเปลี่ยนแปลง (ข้อ 2)', v:f2(rx), max:10, s:SCORE.inv(rx), n:'มิติการโอนเปลี่ยนแปลง'},
+    {t:'5.4 มิติการใช้จ่ายเงินกัน (ข้อ 3.1)', v:hasCarry?f2(rc):'-', max:10, s:hasCarry?SCORE.step5(rc):10, n:'มิติการใช้จ่ายเงินกัน'},
+    {t:'5.5 มิติเงินที่คาดว่าจะพับตก (ข้อ 1.8)', v:f2(rl), max:10, s:SCORE.inv(rl), n:'มิติเงินที่คาดว่าจะพับตก'},
+    {t:'5.6 มิติผลการดำเนินงาน (ข้อ 4)', v:f2(perfPct), max:40, s:SCORE.perf(perfPct), n:'มิติผลการดำเนินงาน'}];
+  const total = dims.reduce((a,x)=>a+x.s,0);
+  return {code,name,v11,v12,v14,v15,v16,v17,v18,v31,v32,xfer,hasPb,base,LBL,kinds,pf,pfTot,perfPct,r14,r17,rx,rc,rl,hasCarry,dims,total};
+}
+function buildHTML(m,d,note,pdf){
+  const c = calc(d);
+  const {code,name,v11,v12,v14,v15,v16,v17,v18,v31,v32,xfer,base,LBL,kinds,pf,pfTot,perfPct,r14,r17,rx,rc,hasCarry,dims,total} = c;
+  const sf = x=>Number.isInteger(x)?String(x):f2(x);
+  const dash = (v,fn)=> v ? fn(v) : '-';
+  const row = (lab,a,b,cc,cls='') => `<tr class="${cls}"><td>${lab}</td><td class="n">${a??''}</td><td class="n">${b??''}</td><td class="n">${cc??''}</td></tr>`;
+  const lab12 = c.hasPb ? '1.2 วงเงินงบประมาณ หลัง พรบ โอน' : '1.2 วงเงินงบประมาณสุทธิหลังโอนเปลี่ยนแปลง';
+  const t1 = `<table><thead><tr><th class="sh" colspan="4">1.งบประมาณรายจ่ายประจำปีงบประมาณ พ.ศ. ${CONFIG.FISCAL_YEAR}</th></tr>
+    <tr><th></th><th class="n">จำนวนเงิน<br>(ลบ.)</th><th class="n">ร้อยละต่อ<br>พรบ.</th><th class="n">ร้อยละต่อ<br>${LBL}</th></tr></thead><tbody>
+    ${row('1.1 วงเงินงบประมาณตาม พรบ. งบประมาณรายจ่ายประจำปี',f4(v11),'','')}
+    ${row(lab12,f4(base),f2(pct(base,v11)),'')}
+    ${row('1.3 จัดสรรงบประมาณ',f4(base),f2(pct(base,v11)),f2(pct(base,base)))}
+    ${row('1.4 เบิกจ่าย',f4(v14),f2(pct(v14,v11)),f2(r14),'hl')}
+    ${row('1.5 PO',f4(v15),f2(pct(v15,v11)),f2(pct(v15,base)))}
+    ${row('1.6 การสำรองเงินในช่วงปลายปีงบประมาณ',f4(v16),f2(pct(v16,v11)),f2(pct(v16,base)))}
+    ${row('1.7 การใช้จ่ายงบประมาณ (เบิกจ่าย + PO + สำรองเงิน)<br>(1.7 = 1.4 + 1.5 + 1.6)',f4(v17),f2(pct(v17,v11)),f2(r17),'hl')}
+    ${row('1.8 เงินที่คาดว่าจะพับตก (1.8 = 1.3 - 1.7)',f4(v18),f2(pct(v18,v11)),f2(pct(v18,base)),'hl')}
+    </tbody></table>`;
+  const t3 = `<table><thead><tr><th class="sh" colspan="3">3. เงินกันไว้เบิกเหลื่อมปี</th></tr>
+    <tr><th></th><th class="n">จำนวนเงิน (ลบ.)</th><th class="n">ร้อยละ</th></tr></thead><tbody>
+    <tr><td>3.1 เงินกันไว้เบิกเหลื่อมปีทั้งสิ้น</td><td class="n">${hasCarry?f4(v31):'-'}</td><td class="n"></td></tr>
+    <tr class="hl"><td>3.2 ผลการเบิกจ่ายเงินกันไว้เบิกเหลื่อมปี</td><td class="n">${hasCarry?f4(v32):'-'}</td><td class="n">${hasCarry?f2(rc):'-'}</td></tr></tbody></table>`;
+  const t2 = `<table class="t2"><thead><tr><th class="sh" colspan="6">2.การโอนเงินจัดสรรและ/หรือการเปลี่ยนแปลงเงินจัดสรร</th></tr>
+    <tr><th></th><th class="n">จำนวนรายการ</th><th class="n">อำนาจ ลงป.<br>(ลบ.)</th><th class="n">อำนาจ สรก.<br>(ลบ.)</th><th class="n">รวมทั้งสิ้น<br>(ลบ.)</th><th class="n">ร้อยละต่อ<br>${LBL}</th></tr></thead><tbody>
+    <tr class="hl"><td>โอนเปลี่ยนแปลง</td><td class="n">-</td><td class="n">-</td><td class="n">-</td><td class="n">${f4(xfer)}</td><td class="n">${f2(rx)}</td></tr></tbody></table>`;
+  const t4 = `<table><thead><tr><th class="sh" colspan="5">4. ผลการดำเนินงานตามเป้าหมายการให้บริการ</th></tr>
+    <tr><th></th><th class="n">จำนวนทั้งหมด</th><th class="n">บรรลุเป้าหมาย</th><th class="n">ไม่บรรลุเป้าหมาย</th><th class="n">ร้อยละที่ได้</th></tr></thead><tbody>
+    ${kinds.map(([lab,k])=>{const [t,a,n,nr,avg]=pf(k);return `<tr><td>${lab}</td><td class="n">${t?t:'-'}</td><td class="n">${t?a:'-'}</td><td class="n">${t?(n||'-'):'-'}</td><td class="n">${t-nr>0?f2(avg):'-'}</td></tr>`}).join('')}
+    <tr class="hl tot"><td>รวมทั้งสิ้น</td><td class="n">${pfTot[0]||'-'}</td><td class="n">${pfTot[0]?pfTot[1]:'-'}</td><td class="n">${pfTot[0]?(pfTot[2]||'-'):'-'}</td><td class="n">${pfTot[0]?f2(perfPct):'-'}</td></tr></tbody></table>${pfTot[3]>0?`<div class="hint" style="margin-top:4px">มีตัวชี้วัดที่ยังไม่มีผลงาน ${pfTot[3]} ตัว ไม่นำมาเฉลี่ย</div>`:''}`;
+  const t5 = `<div class="scroll"><table class="t5"><thead><tr><th colspan="4" class="sh" style="text-align:center">5. มิติการประเมินศักยภาพ</th></tr>
+    <tr><th>มิติการประเมินศักยภาพ</th><th>ผลการประเมิน</th><th>คะแนนเต็ม</th><th>คะแนนที่ได้รับ</th></tr></thead><tbody>
+    ${dims.map(x=>`<tr><td>${x.t}</td><td>${x.v}</td><td>${x.max}</td><td>${sf(x.s)}</td></tr>`).join('')}
+    <tr class="tot"><td>รวมทั้งสิ้น</td><td>-</td><td>100</td><td>${sf(total)}</td></tr></tbody></table></div>`;
+  const donut1 = donutSVG([
+    {v:v14,color:'var(--c-use)',text:f4(v14),name:'เบิกจ่าย'},
+    {v:v15,color:'var(--c-po)',text:f4(v15),name:'PO'},
+    {v:v16,color:'var(--c-res)',text:f4(v16),name:'สำรองเงิน'},
+    {v:v18,color:'var(--c-lapse)',text:f4(v18),name:'เงินที่คาดว่าจะพับตก'}]);
+  const donut2 = pfTot[0]>0
+    ? donutSVG([{v:pfTot[1],color:'var(--c-use)',text:`บรรลุ (${f2(pct(pfTot[1],pfTot[0]))}%)`,name:'บรรลุเป้าหมาย'},
+                {v:pfTot[2],color:'var(--c-res)',text:`ไม่บรรลุ (${f2(pct(pfTot[2],pfTot[0]))}%)`,name:'ไม่บรรลุเป้าหมาย'},
+                {v:pfTot[3],color:'var(--c-grid)',text:`ไม่มีผลงาน (${f2(pct(pfTot[3],pfTot[0]))}%)`,name:'ไม่มีผลงาน'}])
+    : donutSVG([],'ไม่มีข้อมูล (0.00%)');
+  const noteBlock = pdf
+    ? `<div class="notetxt">${note.trim()?esc(note):'-'}</div>`
+    : `<textarea id="noteBox" class="ctl note-in" rows="3" placeholder="พิมพ์หมายเหตุของหน่วยงานนี้" aria-label="หมายเหตุ">${esc(note)}</textarea>
+       <div class="row" style="margin-top:8px;align-items:center"><button class="btn" id="btnNote" type="button">จัดเก็บหมายเหตุ</button><span class="hint" id="noteSt"></span></div>`;
+  return `
+    <h1>รายงานการประเมินศักยภาพการใช้จ่ายงบประมาณประจำปีงบประมาณ พ.ศ. ${CONFIG.FISCAL_YEAR}</h1>
+    <p class="meta">กระทรวง : ${esc(m.code)} ${esc(m.name)}</p>
+    <p class="meta">หน่วยงาน : ${esc(code)} ${esc(name)}</p>
+    <div class="grid">
+      <div class="sec"><div class="ctitle">การใช้จ่ายงบประมาณ</div>${donut1}
+        <div class="legend"><span><i style="background:var(--c-use)"></i>1.4 เบิกจ่าย</span><span><i style="background:var(--c-res)"></i>1.6 สำรองเงิน</span>
+        <span><i style="background:var(--c-po)"></i>1.5 po</span><span><i style="background:var(--c-lapse)"></i>1.8 เงินที่คาดว่าจะพับตก</span></div></div>
+      <div class="sec"><div class="scroll">${t1}</div></div>
+      <div class="sec"><div class="scroll">${t3}</div></div>
+      <div class="sec"><div class="scroll">${t2}</div></div>
+      <div class="sec"><div class="ctitle">ผลการดำเนินงาน</div>${donut2}</div>
+      <div class="sec"><div class="scroll">${t4}</div></div>
+    </div>
+    <div class="bottom">${t5}<div class="radarbox">${radarSVG(dims.map(x=>({name:x.n,score:x.s,max:x.max})))}</div></div>
+    <div class="note"><b>หมายเหตุ</b>${noteBlock}</div>
+    <div class="wm">จาก claude.ai</div>`;
+}
+
+/* ===== หมายเหตุ (เก็บใน db ใช้ร่วมกันทุกคนที่เปิดหน้านี้) ===== */
+let DB=null, DL=null;
+async function initCaps(){
+  try{ if(window.claude?.use){ DB = await claude.use('db'); DL = await claude.use('downloads'); } }catch(e){}
+  $('btnPdf').hidden = false;   // บนเว็บของตัวเอง ใช้ pdf.save() ได้เสมอ
+}
+async function loadNote(code){
+  try{
+    if (DB){ const s = await DB.collection('notes').doc(code).get(); return s.exists ? (s.data().text||'') : ''; }
+  }catch(e){}
+  try{ return localStorage.getItem('note_'+code)||''; }catch(e){ return ''; }
+}
+async function saveNote(code,text){
+  if (DB){ await DB.collection('notes').doc(code).set({text,dept:code,updatedAt:Date.now()}); return 'db'; }
+  try{ localStorage.setItem('note_'+code,text); return 'local'; }catch(e){ throw new Error('no storage'); }
+}
+async function render(m,d){
+  CUR = {m,d};
+  const code = d[0];
+  $('report').innerHTML = buildHTML(m,d,'',false);
+  $('srcNote').textContent = 'หน่วย: ล้านบาท (ลบ.)';
+  const box = $('noteBox'); box.disabled = true;
+  const text = await loadNote(code);
+  if (!CUR || CUR.d[0]!==code) return;
+  box.value = text; box.disabled = false;
+  $('btnNote').onclick = async ()=>{
+    const st = $('noteSt'); $('btnNote').disabled = true; st.textContent = 'กำลังจัดเก็บ…';
+    try{ const w = await saveNote(code, box.value); st.textContent = w==='db' ? 'จัดเก็บแล้ว' : 'จัดเก็บแล้ว (เก็บในเบราว์เซอร์นี้เท่านั้น)'; }
+    catch(e){ st.textContent = 'จัดเก็บไม่สำเร็จ ต้องมีสิทธิ์แก้ไขหน้านี้'; }
+    $('btnNote').disabled = false;
+  };
+}
+
+/* ===== ดาวน์โหลด PDF ===== */
+async function downloadPdf(){
+  if (!CUR) return;
+  const btn = $('btnPdf'); btn.disabled = true; const old = btn.textContent; btn.textContent = 'กำลังสร้าง PDF…';
+  const holder = document.createElement('div');
+  holder.className = 'report pdf'; holder.style.cssText = 'position:fixed;left:-10000px;top:0';
+  try{
+    const code = CUR.d[0];
+    const note = $('noteBox') ? $('noteBox').value : await loadNote(code);
+    holder.innerHTML = buildHTML(CUR.m,CUR.d,note,true);
+    document.body.appendChild(holder);
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const cv = await html2canvas(holder,{scale:2.5,backgroundColor:'#ffffff',useCORS:true,width:794,height:1123,windowWidth:1000});
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({unit:'pt',format:'a4',orientation:'portrait'});
+    const W = pdf.internal.pageSize.getWidth(), H = pdf.internal.pageSize.getHeight();
+    pdf.addImage(cv.toDataURL('image/jpeg',0.95),'JPEG',0,0,W,H);
+    const fname = `report_${code}.pdf`;
+    if (DL) await DL.save({filename:`รายงานศักยภาพ_${code}.pdf`, data: pdf.output('blob')}); else pdf.save(fname);
+  }catch(e){
+    if (!(e && e.code==='declined')) alert_('สร้างหรือบันทึก PDF ไม่สำเร็จ กรุณาลองอีกครั้ง');
+  }finally{ holder.remove(); btn.disabled=false; btn.textContent=old; }
+}
+function alert_(t){ $('srcNote').textContent = t; }
+$('btnPdf').onclick = downloadPdf;
+
+/* ===== เริ่มต้น ===== */
+async function boot(){
+  if (CONFIG.DATA_URL){
+    try{ const r=await fetch(CONFIG.DATA_URL,{cache:'no-cache'}); if(!r.ok) throw new Error(r.status); const j=await r.json(); DATA=j.data||DATA; PERF=j.perf||PERF; }catch(e){}
+  }
+  if (!DATA.length){ show('vGate'); $('gateErr').textContent='โหลดข้อมูลไม่สำเร็จ (data.json) กรุณาลองใหม่หรือแจ้งผู้ดูแล'; return; }
+  if (store('auth')==='1') goPick(); else { show('vGate'); }
+}
+initCaps();
+boot();
+</script>
+
+</body>
+</html>
