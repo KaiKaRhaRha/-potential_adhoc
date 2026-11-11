@@ -1,7 +1,7 @@
 """อ่าน Excel 2 ไฟล์ แล้วเขียน data.json
 ใช้:  python scripts/build_data.py data site/data.json
   data/budget.xlsx       ชีท "ใช้งาน"  (ข้อมูลงบประมาณ)
-  data/KPI_summary.xlsx  ชีท "สรุปรายหน่วยงาน" และ "รายตัวชี้วัด"  (ผลการดำเนินงาน)
+  data/KPI_summaryv2.xlsx  ชีท "สรุปรายหน่วยงาน" และ "รายตัวชี้วัด"  (ผลการดำเนินงาน)
 """
 import sys, os, json, itertools, collections
 import openpyxl
@@ -46,9 +46,9 @@ for k, g in itertools.groupby(rows, key=lambda r: str(r[0])[:2]):
     mins.append({'code': k, 'name': n, 'depts': g})
 
 # ---------- 2) ผลการดำเนินงาน (KPI) ----------
-kw = openpyxl.load_workbook(os.path.join(data_dir, 'KPI_summary.xlsx'), data_only=True)
+kw = openpyxl.load_workbook(os.path.join(data_dir, 'KPI_summaryv2.xlsx'), data_only=True)
 for s in ('สรุปรายหน่วยงาน', 'รายตัวชี้วัด'):
-    if s not in kw.sheetnames: die(f'KPI_summary.xlsx ไม่มีชีท "{s}"')
+    if s not in kw.sheetnames: die(f'KPI_summaryv2.xlsx ไม่มีชีท "{s}"')
 det = collections.defaultdict(lambda: collections.defaultdict(list))
 TYPE = {'เชิงปริมาณ': 'quant', 'เชิงคุณภาพ': 'qual'}
 for r in kw['รายตัวชี้วัด'].iter_rows(min_row=2, values_only=True):
