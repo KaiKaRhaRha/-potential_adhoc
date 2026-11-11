@@ -50,7 +50,13 @@ kw = openpyxl.load_workbook(os.path.join(data_dir, 'KPI_summaryv2.xlsx'), data_o
 for s in ('สรุปรายหน่วยงาน', 'รายตัวชี้วัด'):
     if s not in kw.sheetnames: die(f'KPI_summaryv2.xlsx ไม่มีชีท "{s}"')
 det = collections.defaultdict(lambda: collections.defaultdict(list))
-TYPE = {'เชิงปริมาณ': 'quant', 'เชิงคุณภาพ': 'qual'}
+# TYPE = {'เชิงปริมาณ': 'quant', 'เชิงคุณภาพ': 'qual'}
+TYPE = {
+    'เชิงปริมาณ': 'quant',
+    'ปริมาณ': 'quant',
+    'เชิงคุณภาพ': 'qual',
+    'คุณภาพ': 'qual'
+}
 for r in kw['รายตัวชี้วัด'].iter_rows(min_row=2, values_only=True):
     if r[0] and r[5] in TYPE: det[str(r[0]).split()[0]][TYPE[r[5]]].append(r)
 PERF = {}
