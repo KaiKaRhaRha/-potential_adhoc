@@ -99,7 +99,11 @@ svg text{fill:var(--ink);font-family:var(--font)}
 .report.pdf .bottom{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .switch{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr) minmax(0,1.6fr) auto;gap:10px;align-items:end;margin-bottom:10px;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:12px}
 .switch label{margin:0 0 4px;font-size:12px}
-.sw-b{display:flex}
+.sw-b{display:flex;position:relative}
+.dlmenu{position:absolute;right:0;top:46px;z-index:5;min-width:240px;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:6px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.dlmenu button{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:4px;padding:10px 12px;cursor:pointer;color:var(--ink)}
+.dlmenu button:hover,.dlmenu button:focus-visible{background:var(--subhead);outline:none}
+.dlmenu small{display:block;color:var(--ink2);font-size:12px}
 @media (max-width:720px){.switch{grid-template-columns:minmax(0,1fr)}}
 /* PDF: กระดาษ A4 พอดี 794x1123px แล้วกระจายเนื้อหาให้เต็มหน้า */
 .report.pdf{width:794px;height:1123px;padding:34px 30px 40px;display:flex;flex-direction:column;position:relative;overflow:hidden;font-size:10px;line-height:1.35}
@@ -123,6 +127,7 @@ svg text{fill:var(--ink);font-family:var(--font)}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <div class="wrap">
   <!-- 1. เข้าสู่ระบบ -->
   <section id="vGate" class="card gate" hidden>
@@ -158,7 +163,11 @@ svg text{fill:var(--ink);font-family:var(--font)}
       <div class="sw-f"><label for="rMin">กระทรวง</label><select id="rMin" class="ctl"></select></div>
       <div class="sw-f sw-q"><label for="rQ">ค้นหาหน่วยงาน</label><input id="rQ" class="ctl" type="search" placeholder="รหัสหรือชื่อ"></div>
       <div class="sw-f sw-d"><label for="rDept">หน่วยงาน</label><select id="rDept" class="ctl"></select></div>
-      <div class="sw-b"><button class="btn" id="btnPdf" type="button" hidden>ดาวน์โหลด PDF</button></div>
+      <div class="sw-b"><button class="btn" id="btnPdf" type="button" aria-haspopup="true" aria-expanded="false" hidden>ดาวน์โหลด ▾</button>
+        <div class="dlmenu" id="dlMenu" role="menu" hidden>
+          <button type="button" role="menuitem" id="dlOne">หน่วยงานที่แสดงอยู่<small>ไฟล์ PDF 1 ไฟล์</small></button>
+          <button type="button" role="menuitem" id="dlAll">ทั้งกระทรวงนี้<small id="dlAllInfo">ไฟล์ ZIP รวม PDF ทุกหน่วยงาน</small></button>
+        </div></div>
     </div>
     <div class="hint" id="srcNote" style="margin-bottom:8px"></div>
     <div class="report" id="report"></div>
@@ -168,7 +177,7 @@ svg text{fill:var(--ink);font-family:var(--font)}
 <script>
 /* ===== ตั้งค่า ===== */
 const CONFIG = {
-  PASSWORD: "password",
+  PASSWORD: "1",
   FISCAL_YEAR: 2569,
   DATA_URL: 'data.json',   // สร้างโดย scripts/build_data.py ตอน deploy
 };
@@ -420,31 +429,79 @@ async function render(m,d){
   };
 }
 
-/* ===== ดาวน์โหลด PDF ===== */
-async function downloadPdf(){
-  if (!CUR) return;
-  const btn = $('btnPdf'); btn.disabled = true; const old = btn.textContent; btn.textContent = 'กำลังสร้าง PDF…';
-  const holder = document.createElement('div');
-  holder.className = 'report pdf'; holder.style.cssText = 'position:fixed;left:-10000px;top:0';
+/* ===== ดาวน์โหลด PDF / ZIP ===== */
+let BUSY = false;
+const safeName = t => String(t).replace(/[\\/:*?"<>|\u0000-\u001f]/g,'').replace(/\s+/g,' ').trim().slice(0,80);
+async function pdfBlob(holder,m,d,note,scale){
+  holder.innerHTML = buildHTML(m,d,note,true);
+  const cv = await html2canvas(holder,{scale,backgroundColor:'#ffffff',useCORS:true,width:794,height:1123,windowWidth:1000});
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({unit:'pt',format:'a4',orientation:'portrait'});
+  pdf.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',0,0,pdf.internal.pageSize.getWidth(),pdf.internal.pageSize.getHeight());
+  return pdf.output('blob');
+}
+async function saveBlob(filename,blob){
+  if (DL){ await DL.save({filename,data:blob}); return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+}
+function newHolder(){
+  const h=document.createElement('div'); h.className='report pdf'; h.style.cssText='position:fixed;left:-10000px;top:0';
+  document.body.appendChild(h); return h;
+}
+function setBusy(on,label){
+  BUSY=on; const b=$('btnPdf'); b.disabled=on;
+  if (on){ b.dataset.old=b.dataset.old||b.textContent; b.textContent=label; }
+  else { b.textContent=b.dataset.old||'ดาวน์โหลด ▾'; delete b.dataset.old; }
+}
+async function downloadOne(){
+  if (!CUR || BUSY) return;
+  setBusy(true,'กำลังสร้าง PDF…'); const holder=newHolder();
   try{
-    const code = CUR.d[0];
+    const code=CUR.d[0];
     const note = $('noteBox') ? $('noteBox').value : await loadNote(code);
-    holder.innerHTML = buildHTML(CUR.m,CUR.d,note,true);
-    document.body.appendChild(holder);
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
-    const cv = await html2canvas(holder,{scale:2.5,backgroundColor:'#ffffff',useCORS:true,width:794,height:1123,windowWidth:1000});
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({unit:'pt',format:'a4',orientation:'portrait'});
-    const W = pdf.internal.pageSize.getWidth(), H = pdf.internal.pageSize.getHeight();
-    pdf.addImage(cv.toDataURL('image/jpeg',0.95),'JPEG',0,0,W,H);
-    const fname = `report_${code}.pdf`;
-    if (DL) await DL.save({filename:`รายงานศักยภาพ_${code}.pdf`, data: pdf.output('blob')}); else pdf.save(fname);
+    const blob = await pdfBlob(holder,CUR.m,CUR.d,note,2.5);
+    await saveBlob(`รายงานศักยภาพ_${code}.pdf`,blob);
   }catch(e){
     if (!(e && e.code==='declined')) alert_('สร้างหรือบันทึก PDF ไม่สำเร็จ กรุณาลองอีกครั้ง');
-  }finally{ holder.remove(); btn.disabled=false; btn.textContent=old; }
+  }finally{ holder.remove(); setBusy(false); }
 }
+async function downloadAll(){
+  if (!CUR || BUSY) return;
+  const m=CUR.m, list=m.depts, total=list.length;
+  if (typeof JSZip==='undefined'){ alert_('โหลดตัวสร้างไฟล์ ZIP ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง'); return; }
+  setBusy(true,`กำลังสร้าง 0/${total}`); const holder=newHolder();
+  try{
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const zip=new JSZip(); const cur=CUR.d[0];
+    for (let i=0;i<total;i++){
+      const d=list[i];
+      const note = (d[0]===cur && $('noteBox')) ? $('noteBox').value : await loadNote(d[0]);
+      const blob = await pdfBlob(holder,m,d,note,2);
+      zip.file(`${safeName(d[0]+' '+d[1])}.pdf`,blob);
+      $('btnPdf').textContent=`กำลังสร้าง ${i+1}/${total}`;
+      await new Promise(r=>setTimeout(r,0));
+    }
+    $('btnPdf').textContent='กำลังบีบอัด ZIP…';
+    const out=await zip.generateAsync({type:'blob',compression:'STORE'});
+    await saveBlob(`รายงานศักยภาพ_${safeName(m.code+' '+m.name)}.zip`,out);
+    alert_(`ดาวน์โหลดครบ ${total} หน่วยงาน`);
+  }catch(e){
+    if (!(e && e.code==='declined')) alert_('สร้างหรือบันทึกไฟล์ ZIP ไม่สำเร็จ กรุณาลองอีกครั้ง');
+  }finally{ holder.remove(); setBusy(false); }
+}
+function closeMenu(){ $('dlMenu').hidden=true; $('btnPdf').setAttribute('aria-expanded','false'); }
+$('btnPdf').onclick = e=>{
+  e.stopPropagation(); const mn=$('dlMenu'); mn.hidden=!mn.hidden;
+  $('btnPdf').setAttribute('aria-expanded',String(!mn.hidden));
+  if (!mn.hidden && CUR) $('dlAllInfo').textContent=`ไฟล์ ZIP รวม PDF ${CUR.m.depts.length} หน่วยงาน ของ ${CUR.m.name}`;
+};
+$('dlOne').onclick = ()=>{ closeMenu(); downloadOne(); };
+$('dlAll').onclick = ()=>{ closeMenu(); downloadAll(); };
+document.addEventListener('click',e=>{ if(!e.target.closest('.sw-b')) closeMenu(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeMenu(); });
 function alert_(t){ $('srcNote').textContent = t; }
-$('btnPdf').onclick = downloadPdf;
 
 /* ===== เริ่มต้น ===== */
 async function boot(){
