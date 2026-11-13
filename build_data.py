@@ -2,7 +2,6 @@
 ใช้:  python scripts/build_data.py data site/data.json
   data/budget.xlsx       ชีท "ใช้งาน"  (ข้อมูลงบประมาณ)
   data/KPI_summaryv2.xlsx  ชีท "สรุปรายหน่วยงาน" และ "รายตัวชี้วัด"  (ผลการดำเนินงาน)
-                           ชีท "Sheet1" (ชื่อกระทรวงที่ถูกต้อง ใช้แทนชื่อกระทรวงในดรอปดาวน์)
 """
 import sys, os, json, itertools, collections, re
 import openpyxl
@@ -74,69 +73,45 @@ known = {d[0] for m in mins for d in m['depts']}
 missing = [c for c in PERF if c not in known]
 if missing: print('WARNING: รหัสใน KPI ที่ไม่พบในไฟล์งบ:', missing)
 
-# ---------- 3) ชื่อกระทรวงที่ถูกต้องจาก KPI_summaryv2.xlsx ชีท "Sheet1" ----------
-# แก้เฉพาะชื่อกระทรวงที่แสดงในดรอปดาวน์ (รหัสกลุ่ม ลำดับ และข้อมูลอื่นไม่เปลี่ยน)
-def _txt(v): return re.sub(r'\s+', ' ', str(v)).strip() if v is not None else ''
-def _code(v):
-    if isinstance(v, (int, float)) and float(v) == int(v): return str(int(v)).zfill(5)
-    t = _txt(v).split(' ')[0] if _txt(v) else ''
-    return t if re.fullmatch(r'\d{5}', t) else None
-
-def ministry_map(ws):
-    rows = [list(r) for r in ws.iter_rows(values_only=True)]
-    ncol = max((len(r) for r in rows), default=0)
-    rows = [r + [None] * (ncol - len(r)) for r in rows]
-    def dump():
-        print('--- 6 แถวแรกของ Sheet1 (ใช้ตรวจโครงสร้าง) ---')
-        for r in rows[:6]: print([_txt(v)[:30] for v in r])
-    # คอลัมน์รหัสหน่วยงาน = คอลัมน์ที่มีรหัส 5 หลักมากที่สุด
-    cnt = [sum(1 for r in rows if _code(r[c])) for c in range(ncol)]
-    if not cnt or max(cnt) == 0:
-        print('WARNING: Sheet1 ไม่พบคอลัมน์รหัสหน่วยงาน 5 หลัก ข้ามการเปลี่ยนชื่อกระทรวง'); dump(); return None
-    ccode = cnt.index(max(cnt))
-    data = [r for r in rows if _code(r[ccode])]
-    # (1) หัวคอลัมน์ที่มีคำว่า "กระทรวง"
-    cmin = None
-    for r in rows[:15]:
-        for c, v in enumerate(r):
-            if c != ccode and 'กระทรวง' in _txt(v) and not _code(v):
-                cmin = c; break
-        if cmin is not None: break
-    # (2) คอลัมน์ที่ค่าขึ้นต้นด้วย "กระทรวง" มากที่สุด
-    if cmin is None:
-        sc = [(sum(1 for d in data if _txt(d[c]).startswith('กระทรวง')), c) for c in range(ncol) if c != ccode]
-        if sc and max(sc)[0] > 0: cmin = max(sc)[1]
-    # (3) คอลัมน์ข้อความที่ค่าซ้ำกันในรหัสกลุ่มเดียวกัน (2 หลักแรก) และมีค่าไม่ซ้ำน้อยที่สุด
-    if cmin is None:
-        best = None
-        for c in range(ncol):
-            if c == ccode: continue
-            vals = [(_code(d[ccode])[:2], _txt(d[c])) for d in data if _txt(d[c]) and not _txt(d[c]).replace('.', '').isdigit()]
-            if len(vals) < len(data) * 0.5: continue
-            g = collections.defaultdict(collections.Counter)
-            for k, v in vals: g[k][v] += 1
-            cover = sum(x.most_common(1)[0][1] for x in g.values()) / len(vals)
-            key = (round(cover, 2), -len({v for _, v in vals}))
-            if cover >= 0.8 and (best is None or key > best[0]): best = (key, c)
-        if best: cmin = best[1]
-    if cmin is None:
-        print('WARNING: Sheet1 ไม่พบคอลัมน์ชื่อกระทรวง ข้ามการเปลี่ยนชื่อกระทรวง'); dump(); return None
-    print(f'Sheet1: คอลัมน์รหัส = {ccode+1}, คอลัมน์กระทรวง = {cmin+1}, ตัวอย่าง: {_txt(data[0][cmin])!r}')
-    out, last = {}, ''
-    for r in rows:
-        c = _code(r[ccode])
-        if not c: continue
-        m = _txt(r[cmin]) or last          # เซลล์ที่ merge/ว่าง ใช้ค่าก่อนหน้า
-        if m: out[c] = last = m
-    return out
-
-if 'Sheet1' not in kw.sheetnames: die('KPI_summaryv2.xlsx ไม่มีชีท "Sheet1" (ชีทที่มี: %s)' % ', '.join(kw.sheetnames))
-MIN = ministry_map(kw['Sheet1']) or {}
-for m in mins if MIN else []:
-    votes = collections.Counter(MIN[d[0]] for d in m['depts'] if d[0][:2] == m['code'] and d[0] in MIN)
-    if not votes:
-        print(f'WARNING: กระทรวง {m["code"]} "{m["name"]}" ไม่พบใน Sheet1 คงชื่อเดิม'); continue
-    new = votes.most_common(1)[0][0]
+# ---------- 3) ชื่อกระทรวงที่ถูกต้อง (ตามรหัส 2 หลักแรก) ----------
+# แก้เฉพาะชื่อกระทรวงที่แสดงในดรอปดาวน์ ลำดับ/การจัดกลุ่ม/ข้อมูลอื่นไม่เปลี่ยน
+MIN_NAME = {
+    '01': 'สำนักนายกรัฐมนตรี',
+    '02': 'กระทรวงกลาโหม',
+    '03': 'กระทรวงการคลัง',
+    '04': 'กระทรวงการต่างประเทศ',
+    '05': 'กระทรวงการท่องเที่ยวและกีฬา',
+    '06': 'กระทรวงการพัฒนาสังคมและความมั่นคงของมนุษย์',
+    '07': 'กระทรวงเกษตรและสหกรณ์',
+    '08': 'กระทรวงคมนาคม',
+    '09': 'กระทรวงทรัพยากรธรรมชาติ และสิ่งแวดล้อม',
+    '11': 'กระทรวงดิจิทัลเพื่อเศรษฐกิจและสังคม',
+    '12': 'กระทรวงพลังงาน',
+    '13': 'กระทรวงพาณิชย์',
+    '15': 'กระทรวงมหาดไทย',
+    '16': 'กระทรวงยุติธรรม',
+    '17': 'กระทรวงแรงงาน',
+    '18': 'กระทรวงวัฒนธรรม',
+    '20': 'กระทรวงศึกษาธิการ',
+    '21': 'กระทรวงสาธารณสุข',
+    '22': 'กระทรวงอุตสาหกรรม',
+    '23': 'กระทรวงการอุดมศึกษา วิทยาศาสตร์ วิจัยและนวัตกรรม',
+    '25': 'ส่วนราชการไม่สังกัดสำนักนายกรัฐมนตรี กระทรวง หรือทบวง และหน่วยงานภายใต้การควบคุมดูแลของนายกรัฐมนตรี',
+    '27': 'หน่วยงานของรัฐสภา',
+    '28': 'หน่วยงานของศาล',
+    '29': 'หน่วยงานขององค์กรอิสระและองค์กรอัยการ',
+    '56': 'ส่วนราชการในพระองค์',
+    '60': 'สภากาชาดไทย',
+    '65': 'หน่วยงานอื่นของรัฐ',
+    '70': 'จังหวัดและกลุ่มจังหวัด',
+    '75': 'องค์กรปกครองส่วนท้องถิ่น',
+    '90': 'งบกลาง',
+    '95': 'รายจ่ายเพื่อชดใช้เงินคงคลัง',
+}
+for m in mins:
+    new = MIN_NAME.get(m['code'])
+    if not new:
+        print(f'WARNING: ไม่มีชื่อกระทรวงรหัส {m["code"]} ในตาราง MIN_NAME คงชื่อเดิม "{m["name"]}"'); continue
     if new != m['name']: print(f'  เปลี่ยนชื่อกระทรวง {m["code"]}: "{m["name"]}" -> "{new}"')
     m['name'] = new
 
