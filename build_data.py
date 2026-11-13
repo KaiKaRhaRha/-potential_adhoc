@@ -2,8 +2,9 @@
 ใช้:  python scripts/build_data.py data site/data.json
   data/budget.xlsx       ชีท "ใช้งาน"  (ข้อมูลงบประมาณ)
   data/KPI_summaryv2.xlsx  ชีท "สรุปรายหน่วยงาน" และ "รายตัวชี้วัด"  (ผลการดำเนินงาน)
+                           ชีท "Sheet1" (ชื่อกระทรวงที่ถูกต้อง ใช้แทนชื่อกระทรวงในดรอปดาวน์)
 """
-import sys, os, json, itertools, collections
+import sys, os, json, itertools, collections, re
 import openpyxl
 
 def die(msg):
@@ -72,6 +73,52 @@ for s in kw['สรุปรายหน่วยงาน'].iter_rows(min_row=2
 known = {d[0] for m in mins for d in m['depts']}
 missing = [c for c in PERF if c not in known]
 if missing: print('WARNING: รหัสใน KPI ที่ไม่พบในไฟล์งบ:', missing)
+
+# ---------- 3) ชื่อกระทรวงที่ถูกต้องจาก KPI_summaryv2.xlsx ชีท "Sheet1" ----------
+# แก้เฉพาะชื่อกระทรวงที่แสดงในดรอปดาวน์ (รหัสกลุ่ม ลำดับ และข้อมูลอื่นไม่เปลี่ยน)
+def _txt(v): return re.sub(r'\s+', ' ', str(v)).strip() if v is not None else ''
+def _code(v):
+    if isinstance(v, (int, float)) and float(v) == int(v): return str(int(v)).zfill(5)
+    t = _txt(v).split(' ')[0] if _txt(v) else ''
+    return t if re.fullmatch(r'\d{5}', t) else None
+
+def ministry_map(ws):
+    rows = [list(r) for r in ws.iter_rows(values_only=True)]
+    ncol = max((len(r) for r in rows), default=0)
+    rows = [r + [None] * (ncol - len(r)) for r in rows]
+    # คอลัมน์รหัสหน่วยงาน = คอลัมน์ที่มีรหัส 5 หลักมากที่สุด
+    cnt = [sum(1 for r in rows if _code(r[c])) for c in range(ncol)]
+    if not cnt or max(cnt) == 0: die('Sheet1 ไม่พบคอลัมน์รหัสหน่วยงาน 5 หลัก')
+    ccode = cnt.index(max(cnt))
+    # คอลัมน์กระทรวง = หัวคอลัมน์ที่มีคำว่า "กระทรวง" (สั้นๆ) ถ้าไม่มี ใช้คอลัมน์ที่ขึ้นต้นด้วย "กระทรวง" มากที่สุด
+    cmin = None
+    for r in rows[:15]:
+        for c, v in enumerate(r):
+            t = _txt(v)
+            if c != ccode and t and len(t) <= 25 and 'กระทรวง' in t and not _code(v): cmin = c; break
+        if cmin is not None: break
+    if cmin is None:
+        sc = [(sum(1 for r in rows if _txt(r[c]).startswith('กระทรวง')), c) for c in range(ncol) if c != ccode]
+        if not sc or max(sc)[0] == 0: die('Sheet1 ไม่พบคอลัมน์ชื่อกระทรวง')
+        cmin = max(sc)[1]
+    print(f'Sheet1: คอลัมน์รหัส = {ccode+1}, คอลัมน์กระทรวง = {cmin+1}')
+    out, last = {}, ''
+    for r in rows:
+        c = _code(r[ccode])
+        if not c: continue
+        m = _txt(r[cmin]) or last          # เซลล์ที่ merge/ว่าง ใช้ค่าก่อนหน้า
+        if m: out[c] = last = m
+    return out
+
+if 'Sheet1' not in kw.sheetnames: die('KPI_summaryv2.xlsx ไม่มีชีท "Sheet1" (ชีทที่มี: %s)' % ', '.join(kw.sheetnames))
+MIN = ministry_map(kw['Sheet1'])
+for m in mins:
+    votes = collections.Counter(MIN[d[0]] for d in m['depts'] if d[0][:2] == m['code'] and d[0] in MIN)
+    if not votes:
+        print(f'WARNING: กระทรวง {m["code"]} "{m["name"]}" ไม่พบใน Sheet1 คงชื่อเดิม'); continue
+    new = votes.most_common(1)[0][0]
+    if new != m['name']: print(f'  เปลี่ยนชื่อกระทรวง {m["code"]}: "{m["name"]}" -> "{new}"')
+    m['name'] = new
 
 os.makedirs(os.path.dirname(out_path) or '.', exist_ok=True)
 with open(out_path, 'w', encoding='utf-8') as f:
