@@ -86,22 +86,42 @@ def ministry_map(ws):
     rows = [list(r) for r in ws.iter_rows(values_only=True)]
     ncol = max((len(r) for r in rows), default=0)
     rows = [r + [None] * (ncol - len(r)) for r in rows]
+    def dump():
+        print('--- 6 แถวแรกของ Sheet1 (ใช้ตรวจโครงสร้าง) ---')
+        for r in rows[:6]: print([_txt(v)[:30] for v in r])
     # คอลัมน์รหัสหน่วยงาน = คอลัมน์ที่มีรหัส 5 หลักมากที่สุด
     cnt = [sum(1 for r in rows if _code(r[c])) for c in range(ncol)]
-    if not cnt or max(cnt) == 0: die('Sheet1 ไม่พบคอลัมน์รหัสหน่วยงาน 5 หลัก')
+    if not cnt or max(cnt) == 0:
+        print('WARNING: Sheet1 ไม่พบคอลัมน์รหัสหน่วยงาน 5 หลัก ข้ามการเปลี่ยนชื่อกระทรวง'); dump(); return None
     ccode = cnt.index(max(cnt))
-    # คอลัมน์กระทรวง = หัวคอลัมน์ที่มีคำว่า "กระทรวง" (สั้นๆ) ถ้าไม่มี ใช้คอลัมน์ที่ขึ้นต้นด้วย "กระทรวง" มากที่สุด
+    data = [r for r in rows if _code(r[ccode])]
+    # (1) หัวคอลัมน์ที่มีคำว่า "กระทรวง"
     cmin = None
     for r in rows[:15]:
         for c, v in enumerate(r):
-            t = _txt(v)
-            if c != ccode and t and len(t) <= 25 and 'กระทรวง' in t and not _code(v): cmin = c; break
+            if c != ccode and 'กระทรวง' in _txt(v) and not _code(v):
+                cmin = c; break
         if cmin is not None: break
+    # (2) คอลัมน์ที่ค่าขึ้นต้นด้วย "กระทรวง" มากที่สุด
     if cmin is None:
-        sc = [(sum(1 for r in rows if _txt(r[c]).startswith('กระทรวง')), c) for c in range(ncol) if c != ccode]
-        if not sc or max(sc)[0] == 0: die('Sheet1 ไม่พบคอลัมน์ชื่อกระทรวง')
-        cmin = max(sc)[1]
-    print(f'Sheet1: คอลัมน์รหัส = {ccode+1}, คอลัมน์กระทรวง = {cmin+1}')
+        sc = [(sum(1 for d in data if _txt(d[c]).startswith('กระทรวง')), c) for c in range(ncol) if c != ccode]
+        if sc and max(sc)[0] > 0: cmin = max(sc)[1]
+    # (3) คอลัมน์ข้อความที่ค่าซ้ำกันในรหัสกลุ่มเดียวกัน (2 หลักแรก) และมีค่าไม่ซ้ำน้อยที่สุด
+    if cmin is None:
+        best = None
+        for c in range(ncol):
+            if c == ccode: continue
+            vals = [(_code(d[ccode])[:2], _txt(d[c])) for d in data if _txt(d[c]) and not _txt(d[c]).replace('.', '').isdigit()]
+            if len(vals) < len(data) * 0.5: continue
+            g = collections.defaultdict(collections.Counter)
+            for k, v in vals: g[k][v] += 1
+            cover = sum(x.most_common(1)[0][1] for x in g.values()) / len(vals)
+            key = (round(cover, 2), -len({v for _, v in vals}))
+            if cover >= 0.8 and (best is None or key > best[0]): best = (key, c)
+        if best: cmin = best[1]
+    if cmin is None:
+        print('WARNING: Sheet1 ไม่พบคอลัมน์ชื่อกระทรวง ข้ามการเปลี่ยนชื่อกระทรวง'); dump(); return None
+    print(f'Sheet1: คอลัมน์รหัส = {ccode+1}, คอลัมน์กระทรวง = {cmin+1}, ตัวอย่าง: {_txt(data[0][cmin])!r}')
     out, last = {}, ''
     for r in rows:
         c = _code(r[ccode])
@@ -111,8 +131,8 @@ def ministry_map(ws):
     return out
 
 if 'Sheet1' not in kw.sheetnames: die('KPI_summaryv2.xlsx ไม่มีชีท "Sheet1" (ชีทที่มี: %s)' % ', '.join(kw.sheetnames))
-MIN = ministry_map(kw['Sheet1'])
-for m in mins:
+MIN = ministry_map(kw['Sheet1']) or {}
+for m in mins if MIN else []:
     votes = collections.Counter(MIN[d[0]] for d in m['depts'] if d[0][:2] == m['code'] and d[0] in MIN)
     if not votes:
         print(f'WARNING: กระทรวง {m["code"]} "{m["name"]}" ไม่พบใน Sheet1 คงชื่อเดิม'); continue
