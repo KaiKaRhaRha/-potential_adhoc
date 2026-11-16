@@ -242,104 +242,39 @@ function lab(W,x,y,html,align,cls){
 }
 
 
+
 function donut(o){
   const {w,h,cx,cy,R,r,start,segs,title,ty,legend=[],empty} = o;
-
-  const mid=(R+r)/2, sw=R-r;
-  const valid=segs.filter(s=>Number.isFinite(Number(s.v)) && Number(s.v)>0);
-  const total=valid.reduce((sum,s)=>sum+Number(s.v),0);
-
-  let g='', html='', acc=0;
-  const labels=[];
-
-  if(total<=0){
-    g=`<circle cx="${cx}" cy="${cy}" r="${mid}" fill="none" stroke="#d9d9d9" stroke-width="${sw}"/>`;
-    if(empty) html+=lab(w,cx,cy,esc(empty),'c','k');
-
-  }else{
-
-    let currentAngle=Number(start)-90;
-
-    valid.forEach((s,i)=>{
-
-      const v=Number(s.v);
-      let sweep;
-
-      if(i===valid.length-1){
-        sweep=360-acc;
-      }else{
-        sweep=v/total*360;
-        acc+=sweep;
-      }
-
-      const a=(Number(start)+(valid.slice(0,i).reduce((sum,x)=>sum+Number(x.v),0)+v/2)/total*360)*DEG;
-
-      labels.push({
-        a,
-        lines:[].concat(s.text),
-        line:s.line||'#000'
-      });
-
-      if(sweep>=359.999999){
-
-        g+=`<circle cx="${cx}" cy="${cy}" r="${mid}" fill="none" stroke="${s.color}" stroke-width="${sw}"/>`;
-
-      }else if(sweep>0){
-
-        const a1=currentAngle*DEG;
-        const a2=(currentAngle+sweep)*DEG;
-
-        const x1=cx+mid*Math.cos(a1);
-        const y1=cy+mid*Math.sin(a1);
-        const x2=cx+mid*Math.cos(a2);
-        const y2=cy+mid*Math.sin(a2);
-
-        const large=sweep>180?1:0;
-
-        g+=`<path d="M ${x1} ${y1} A ${mid} ${mid} 0 ${large} 1 ${x2} ${y2}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-linecap="butt"/>`;
-      }
-
-      currentAngle+=sweep;
+  const mid=(R+r)/2, sw=R-r, C=2*Math.PI*mid;
+  const total = segs.reduce((s,x)=>s+Math.max(0,x.v),0);
+  let g='', html='', off=0, acc=0; const labels=[];
+  if (total<=0){
+    g = `<circle cx="${cx}" cy="${cy}" r="${mid}" fill="none" stroke="#d9d9d9" stroke-width="${sw}"/>`;
+    if (empty) html += lab(w,cx,cy,esc(empty),'c','k');
+  } else {
+    segs.forEach(s=>{
+      const v=Math.max(0,s.v); if(!v) return;
+      const len=v/total*C;
+      g += `<circle cx="${cx}" cy="${cy}" r="${mid}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(${start-90} ${cx} ${cy})"/>`;
+      const a=(start+(acc+v/2)/total*360)*DEG; acc+=v; off+=len;
+      labels.push({a,lines:[].concat(s.text),line:s.line||'#000'});
     });
   }
-
   ['r','l'].forEach(side=>{
-    const L=labels
-      .filter(l=>(Math.sin(l.a)>=0?'r':'l')===side)
-      .map(l=>({...l,y:cy-(R+11)*Math.cos(l.a)}))
-      .sort((a,b)=>a.y-b.y);
-
-    for(let i=1;i<L.length;i++){
-      const gap=6.5*(L[i].lines.length+L[i-1].lines.length)+2;
-      if(L[i].y-L[i-1].y<gap) L[i].y=L[i-1].y+gap;
-    }
-
+    const L = labels.filter(l=>(Math.sin(l.a)>=0?'r':'l')===side).map(l=>({...l,y:cy-(R+11)*Math.cos(l.a)})).sort((a,b)=>a.y-b.y);
+    for(let i=1;i<L.length;i++){ const gap=6.5*(L[i].lines.length+L[i-1].lines.length)+2; if(L[i].y-L[i-1].y<gap) L[i].y=L[i-1].y+gap; }
     L.forEach(l=>{
       const s=Math.sin(l.a), c=Math.cos(l.a);
-      const p0=[cx+(R-3)*s,cy-(R-3)*c];
-      const p1=[cx+(R+11)*s,cy-(R+11)*c];
-
-      const x2=side==='r'
-        ?Math.max(cx+R+14,p1[0]+8)
-        :Math.min(cx-R-14,p1[0]-8);
-
+      const p0=[cx+(R-3)*s,cy-(R-3)*c], p1=[cx+(R+11)*s,cy-(R+11)*c];
+      const x2 = side==='r' ? Math.max(cx+R+14,p1[0]+8) : Math.min(cx-R-14,p1[0]-8);
       g+=`<polyline points="${p0[0].toFixed(1)},${p0[1].toFixed(1)} ${p1[0].toFixed(1)},${p1[1].toFixed(1)} ${x2.toFixed(1)},${l.y.toFixed(1)}" fill="none" stroke="${l.line}" stroke-width=".9"/>`;
-
-      l.lines.forEach((t,i)=>{
-        html+=lab(w,x2+(side==='r'?3:-3),l.y+(i-(l.lines.length-1)/2)*13,esc(t),side==='r'?'l':'r');
-      });
+      l.lines.forEach((t,i)=>{ html += lab(w,x2+(side==='r'?3:-3),l.y+(i-(l.lines.length-1)/2)*13,esc(t),side==='r'?'l':'r'); });
     });
   });
-
-  if(title) html+=lab(w,w/2,ty,esc(title),'c','b');
-
-  legend.forEach(L=>{
-    html+=`<div class="lg" style="left:${L.x}px;top:${L.y-7}px"><i style="background:${L.color}"></i>${esc(L.text)}</div>`;
-  });
-
+  if (title) html += lab(w,w/2,ty,esc(title),'c','b');
+  legend.forEach(L=>{ html += `<div class="lg" style="left:${L.x}px;top:${L.y-7}px"><i style="background:${L.color}"></i>${esc(L.text)}</div>`; });
   return {g,html,w,h};
 }
-
 
   // ===== ป้ายตัวเลขรอบวงแหวน =====
   ['r','l'].forEach(side=>{
