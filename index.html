@@ -241,117 +241,105 @@ function lab(W,x,y,html,align,cls){
   return `<div class="lb ${cls||''}" style="${st};top:${(y-6.5).toFixed(1)}px">${html}</div>`;
 }
 
+
 function donut(o){
   const {w,h,cx,cy,R,r,start,segs,title,ty,legend=[],empty} = o;
 
-  const mid = (R+r)/2;
-  const sw = R-r;
-  const total = segs.reduce((s,x)=>s+Math.max(0,Number(x.v)||0),0);
+  const mid=(R+r)/2, sw=R-r;
+  const valid=segs.filter(s=>Number.isFinite(Number(s.v)) && Number(s.v)>0);
+  const total=valid.reduce((sum,s)=>sum+Number(s.v),0);
 
-  let g = '';
-  let html = '';
-  const labels = [];
+  let g='', html='', acc=0;
+  const labels=[];
 
-  if (total <= 0) {
+  if(total<=0){
+    g=`<circle cx="${cx}" cy="${cy}" r="${mid}" fill="none" stroke="#d9d9d9" stroke-width="${sw}"/>`;
+    if(empty) html+=lab(w,cx,cy,esc(empty),'c','k');
 
-    // ไม่มีข้อมูล แสดงวงแหวนสีเทาเต็มวง
-    g = `<circle
-      cx="${cx}" cy="${cy}" r="${mid}"
-      fill="none"
-      stroke="#d9d9d9"
-      stroke-width="${sw}"
-    />`;
+  }else{
 
-    if(empty){
-      html += lab(w,cx,cy,esc(empty),'c','k');
-    }
-
-  } else {
-
-    // ตัดรายการที่มีค่าเป็นศูนย์หรือค่าติดลบออก
-    const valid = segs.filter(s =>
-      Number.isFinite(Number(s.v)) && Number(s.v) > 0
-    );
-
-    let currentAngle = start - 90;
-    let accumulated = 0;
+    let currentAngle=Number(start)-90;
 
     valid.forEach((s,i)=>{
 
-      const value = Number(s.v);
-
-      // คำนวณมุมโดยใช้ส่วนต่างจากค่ารวม
-      // เสี้ยวสุดท้ายบังคับให้ปิดครบ 360 องศา
+      const v=Number(s.v);
       let sweep;
 
-      if(i === valid.length-1){
-        sweep = 360-accumulated;
-      } else {
-        sweep = value/total*360;
-        accumulated += sweep;
+      if(i===valid.length-1){
+        sweep=360-acc;
+      }else{
+        sweep=v/total*360;
+        acc+=sweep;
       }
 
-      const endAngle = currentAngle+sweep;
-
-      // เตรียมตำแหน่งสำหรับวางตัวเลขกำกับ
-      const middleAngle =
-        (start+(segs
-          .slice(0,segs.indexOf(s))
-          .reduce((a,x)=>a+Math.max(0,Number(x.v)||0),0)
-          +value/2)/total*360)*DEG;
+      const a=(Number(start)+(valid.slice(0,i).reduce((sum,x)=>sum+Number(x.v),0)+v/2)/total*360)*DEG;
 
       labels.push({
-        a:middleAngle,
+        a,
         lines:[].concat(s.text),
         line:s.line||'#000'
       });
 
-      // วาดวงกลมเต็มกรณีมีเพียงหนึ่งเสี้ยว
-      if(sweep >= 359.999999){
+      if(sweep>=359.999999){
 
-        g += `<circle
-          cx="${cx}"
-          cy="${cy}"
-          r="${mid}"
-          fill="none"
-          stroke="${s.color}"
-          stroke-width="${sw}"
-        />`;
+        g+=`<circle cx="${cx}" cy="${cy}" r="${mid}" fill="none" stroke="${s.color}" stroke-width="${sw}"/>`;
 
-      } else {
+      }else if(sweep>0){
 
-        const a1 = currentAngle*DEG;
-        const a2 = endAngle*DEG;
+        const a1=currentAngle*DEG;
+        const a2=(currentAngle+sweep)*DEG;
 
-        const x1 = cx+mid*Math.cos(a1);
-        const y1 = cy+mid*Math.sin(a1);
+        const x1=cx+mid*Math.cos(a1);
+        const y1=cy+mid*Math.sin(a1);
+        const x2=cx+mid*Math.cos(a2);
+        const y2=cy+mid*Math.sin(a2);
 
-        const x2 = cx+mid*Math.cos(a2);
-        const y2 = cy+mid*Math.sin(a2);
+        const large=sweep>180?1:0;
 
-        const largeArc = sweep > 180 ? 1 : 0;
-
-        const path = `
-          M ${x1.toFixed(6)} ${y1.toFixed(6)}
-          A ${mid} ${mid} 0 ${largeArc} 1
-            ${x2.toFixed(6)} ${y2.toFixed(6)}
-        `;
-
-        g += `<path
-          d="${path}"
-          fill="none"
-          stroke="${s.color}"
-          stroke-width="${sw}"
-          stroke-linecap="butt"
-        />`;
+        g+=`<path d="M ${x1} ${y1} A ${mid} ${mid} 0 ${large} 1 ${x2} ${y2}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-linecap="butt"/>`;
       }
 
-      currentAngle = endAngle;
+      currentAngle+=sweep;
     });
-
-    // ป้องกันความคลาดเคลื่อนของเสี้ยววงกลม
-    // กรณีผลรวมของข้อมูลต่างจากค่าที่คำนวณเล็กน้อย
   }
+
+  ['r','l'].forEach(side=>{
+    const L=labels
+      .filter(l=>(Math.sin(l.a)>=0?'r':'l')===side)
+      .map(l=>({...l,y:cy-(R+11)*Math.cos(l.a)}))
+      .sort((a,b)=>a.y-b.y);
+
+    for(let i=1;i<L.length;i++){
+      const gap=6.5*(L[i].lines.length+L[i-1].lines.length)+2;
+      if(L[i].y-L[i-1].y<gap) L[i].y=L[i-1].y+gap;
+    }
+
+    L.forEach(l=>{
+      const s=Math.sin(l.a), c=Math.cos(l.a);
+      const p0=[cx+(R-3)*s,cy-(R-3)*c];
+      const p1=[cx+(R+11)*s,cy-(R+11)*c];
+
+      const x2=side==='r'
+        ?Math.max(cx+R+14,p1[0]+8)
+        :Math.min(cx-R-14,p1[0]-8);
+
+      g+=`<polyline points="${p0[0].toFixed(1)},${p0[1].toFixed(1)} ${p1[0].toFixed(1)},${p1[1].toFixed(1)} ${x2.toFixed(1)},${l.y.toFixed(1)}" fill="none" stroke="${l.line}" stroke-width=".9"/>`;
+
+      l.lines.forEach((t,i)=>{
+        html+=lab(w,x2+(side==='r'?3:-3),l.y+(i-(l.lines.length-1)/2)*13,esc(t),side==='r'?'l':'r');
+      });
+    });
+  });
+
+  if(title) html+=lab(w,w/2,ty,esc(title),'c','b');
+
+  legend.forEach(L=>{
+    html+=`<div class="lg" style="left:${L.x}px;top:${L.y-7}px"><i style="background:${L.color}"></i>${esc(L.text)}</div>`;
+  });
+
+  return {g,html,w,h};
+}
+
 
   // ===== ป้ายตัวเลขรอบวงแหวน =====
   ['r','l'].forEach(side=>{
