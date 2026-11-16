@@ -240,9 +240,6 @@ function lab(W,x,y,html,align,cls){
   const st = align==='r' ? `right:${(W-x).toFixed(1)}px` : align==='c' ? `left:${(x-120).toFixed(1)}px;width:240px;text-align:center` : `left:${x.toFixed(1)}px`;
   return `<div class="lb ${cls||''}" style="${st};top:${(y-6.5).toFixed(1)}px">${html}</div>`;
 }
-
-
-
 function donut(o){
   const {w,h,cx,cy,R,r,start,segs,title,ty,legend=[],empty} = o;
   const mid=(R+r)/2, sw=R-r, C=2*Math.PI*mid;
@@ -260,102 +257,6 @@ function donut(o){
       labels.push({a,lines:[].concat(s.text),line:s.line||'#000'});
     });
   }
-  ['r','l'].forEach(side=>{
-    const L = labels.filter(l=>(Math.sin(l.a)>=0?'r':'l')===side).map(l=>({...l,y:cy-(R+11)*Math.cos(l.a)})).sort((a,b)=>a.y-b.y);
-    for(let i=1;i<L.length;i++){ const gap=6.5*(L[i].lines.length+L[i-1].lines.length)+2; if(L[i].y-L[i-1].y<gap) L[i].y=L[i-1].y+gap; }
-    L.forEach(l=>{
-      const s=Math.sin(l.a), c=Math.cos(l.a);
-      const p0=[cx+(R-3)*s,cy-(R-3)*c], p1=[cx+(R+11)*s,cy-(R+11)*c];
-      const x2 = side==='r' ? Math.max(cx+R+14,p1[0]+8) : Math.min(cx-R-14,p1[0]-8);
-      g+=`<polyline points="${p0[0].toFixed(1)},${p0[1].toFixed(1)} ${p1[0].toFixed(1)},${p1[1].toFixed(1)} ${x2.toFixed(1)},${l.y.toFixed(1)}" fill="none" stroke="${l.line}" stroke-width=".9"/>`;
-      l.lines.forEach((t,i)=>{ html += lab(w,x2+(side==='r'?3:-3),l.y+(i-(l.lines.length-1)/2)*13,esc(t),side==='r'?'l':'r'); });
-    });
-  });
-  if (title) html += lab(w,w/2,ty,esc(title),'c','b');
-  legend.forEach(L=>{ html += `<div class="lg" style="left:${L.x}px;top:${L.y-7}px"><i style="background:${L.color}"></i>${esc(L.text)}</div>`; });
-  return {g,html,w,h};
-}
-
-  // ===== ป้ายตัวเลขรอบวงแหวน =====
-  ['r','l'].forEach(side=>{
-
-    const L = labels
-      .filter(l=>(Math.sin(l.a)>=0?'r':'l')===side)
-      .map(l=>({...l,y:cy-(R+11)*Math.cos(l.a)}))
-      .sort((a,b)=>a.y-b.y);
-
-    for(let i=1;i<L.length;i++){
-
-      const gap =
-        6.5*(L[i].lines.length+L[i-1].lines.length)+2;
-
-      if(L[i].y-L[i-1].y<gap){
-        L[i].y=L[i-1].y+gap;
-      }
-    }
-
-    L.forEach(l=>{
-
-      const s=Math.sin(l.a);
-      const c=Math.cos(l.a);
-
-      const p0=[
-        cx+(R-3)*s,
-        cy-(R-3)*c
-      ];
-
-      const p1=[
-        cx+(R+11)*s,
-        cy-(R+11)*c
-      ];
-
-      const x2 = side==='r'
-        ? Math.max(cx+R+14,p1[0]+8)
-        : Math.min(cx-R-14,p1[0]-8);
-
-      g += `<polyline
-        points="${p0[0].toFixed(1)},${p0[1].toFixed(1)}
-                ${p1[0].toFixed(1)},${p1[1].toFixed(1)}
-                ${x2.toFixed(1)},${l.y.toFixed(1)}"
-        fill="none"
-        stroke="${l.line}"
-        stroke-width=".9"
-      />`;
-
-      l.lines.forEach((t,i)=>{
-
-        html += lab(
-          w,
-          x2+(side==='r'?3:-3),
-          l.y+(i-(l.lines.length-1)/2)*13,
-          esc(t),
-          side==='r'?'l':'r'
-        );
-
-      });
-
-    });
-
-  });
-
-  // ===== ชื่อกราฟ =====
-  if(title){
-    html += lab(w,w/2,ty,esc(title),'c','b');
-  }
-
-  // ===== คำอธิบายสี =====
-  legend.forEach(L=>{
-
-    html += `<div class="lg"
-      style="left:${L.x}px;top:${L.y-7}px">
-      <i style="background:${L.color}"></i>${esc(L.text)}
-    </div>`;
-
-  });
-
-  return {g,html,w,h};
-}
-
   ['r','l'].forEach(side=>{
     const L = labels.filter(l=>(Math.sin(l.a)>=0?'r':'l')===side).map(l=>({...l,y:cy-(R+11)*Math.cos(l.a)})).sort((a,b)=>a.y-b.y);
     for(let i=1;i<L.length;i++){ const gap=6.5*(L[i].lines.length+L[i-1].lines.length)+2; if(L[i].y-L[i-1].y<gap) L[i].y=L[i-1].y+gap; }
