@@ -77,9 +77,9 @@ label{display:block;font-weight:600;margin:14px 0 6px}
 .page .t th,.page .t td{white-space:nowrap;overflow:visible;padding:0 7px 0 5px;border-bottom:1px solid #000;height:24px;
   text-align:right;vertical-align:middle;line-height:1.2;font-weight:400}
 .page .t td:first-child,.page .t th:first-child{text-align:left}
-.page .t th{font-weight:600}
+.page .t th{font-weight:700}
 .page .t .sh{background:#b8cbe7;border-top:1px solid #000;text-align:left;font-weight:700;font-size:12px;padding-left:5px}
-.page .t .ch th{background:#e2f1ff;font-weight:600;line-height:19px}
+.page .t .ch th{background:#e2f1ff;font-weight:700;line-height:19px}
 .page .t .ch2 th{line-height:18px}
 .page .t tr.hl td{background:#fffbcb}
 .page .t tr.tall td{line-height:18px;height:41px}
@@ -89,16 +89,16 @@ label{display:block;font-weight:600;margin:14px 0 6px}
 .page .t5 th,.page .t5 td{border:1px solid #000;height:24px;padding:0 5px;white-space:nowrap;text-align:center;vertical-align:middle;line-height:1.2;font-weight:400}
 .page .t5 th{background:#b8cbe7;font-weight:700;font-size:11px;height:28px}
 .page .t5 td:first-child{text-align:left}
-.page .t5 tr.tot td{font-weight:700}
+.page .t5 tr.tot td{font-weight:400}
 .page .ch-box{position:absolute;overflow:visible}
 .page .ch-box svg{position:absolute;left:0;top:0;display:block;overflow:visible}
 .page .lb{position:absolute;white-space:nowrap;font-size:9.5px;line-height:13px;height:13px;color:#595959}
 .page .lb.k{color:#000}
-.page .lb.b{font-weight:700;color:#000}
+.page .lb.b{font-weight:400;color:#000}
 .page .lg{position:absolute;white-space:nowrap;font-size:10.5px;line-height:14px;height:14px;color:#000}
 .page .lg i{position:absolute;left:-17px;top:1px;width:12px;height:12px}
 .page .radar{border:1px solid #000;overflow:hidden}
-.page .noteh{left:33px;top:970px;font-weight:700;font-size:10.5px;text-decoration:underline;line-height:16px}
+.page .noteh{left:33px;top:970px;font-weight:400;font-size:10.5px;text-decoration:underline;line-height:16px}
 .page .notetxt{left:56px;top:994px;width:690px;font-size:10px;line-height:15px;white-space:pre-wrap;word-break:break-word;max-height:110px;overflow:hidden}
 .page .noteed{left:33px;top:992px;width:728px}
 .page .wm{left:26px;bottom:8px;font-size:8.5px;color:#888}
@@ -293,6 +293,14 @@ function radar(items){
   });
   return `<div class="a radar" style="left:444px;top:753px;width:317px;height:215px"><div style="position:relative;width:315px;height:213px"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="position:absolute;left:0;top:0" role="img" aria-label="กราฟเรดาร์คะแนนมิติการประเมิน">${g}</svg>${html}</div></div>`;
 }
+/* ย่อขนาดตัวอักษรเฉพาะช่องที่ข้อความกว้างเกินช่อง (กันล้นไม่ว่าฟอนต์จะกว้างแค่ไหน) */
+function fitText(root){
+  root.querySelectorAll('.t th:not(.sh),.t td,.t5 th,.t5 td').forEach(c=>{
+    c.style.fontSize='';
+    let fs=parseFloat(getComputedStyle(c).fontSize);
+    while (c.scrollWidth>c.clientWidth+0.5 && fs>7){ fs-=0.25; c.style.fontSize=fs+'px'; }
+  });
+}
 /* ===== รายงาน ===== */
 let CUR = null;      // {m,d} หน่วยงานที่กำลังดู
 const r2 = x => Math.round(x*100)/100;
@@ -335,7 +343,7 @@ function buildHTML(m,d,note,pdf){
   const cg = a=>`<colgroup>${a.map(w=>`<col style="width:${w}%">`).join('')}</colgroup>`;
   const row = (lab,a,b,cc,cls='')=>`<tr class="${cls}"><td>${lab}</td><td>${a??''}</td><td>${b??''}</td><td>${cc??''}</td></tr>`;
   const lab12 = c.hasPb ? '1.2 วงเงินงบประมาณ หลัง พรบ โอน' : '1.2 วงเงินงบประมาณสุทธิหลังโอนเปลี่ยนแปลง';
-  const t1 = `<table class="t">${cg([52,15,15,18])}<thead>
+  const t1 = `<table class="t">${cg([50,15,14,21])}<thead>
     <tr><th class="sh" colspan="4" style="height:34px">1.งบประมาณรายจ่ายประจำปีงบประมาณ พ.ศ. ${CONFIG.FISCAL_YEAR}</th></tr>
     <tr class="ch"><th style="height:42px"></th><th>จำนวนเงิน<br>(ลบ.)</th><th>ร้อยละต่อ<br>พรบ.</th><th>ร้อยละต่อ<br>${LBL}</th></tr></thead><tbody>
     ${row('1.1 วงเงินงบประมาณตาม พรบ. งบประมาณรายจ่ายประจำปี',f4(v11),'','')}
@@ -347,21 +355,21 @@ function buildHTML(m,d,note,pdf){
     ${row('1.7 การใช้จ่ายงบประมาณ (เบิกจ่าย + PO + สำรองเงิน)<br>(1.7 = 1.4 + 1.5 + 1.6)',f4(v17),f2(pct(v17,v11)),f2(r17),'hl tall')}
     ${row('1.8 เงินที่คาดว่าจะพับตก (1.8 = 1.3 - 1.7)',f4(v18),f2(pct(v18,v11)),f2(pct(v18,base)),'hl last')}
     </tbody></table>`;
-  const t3 = `<table class="t">${cg([58,27,15])}<thead>
+  const t3 = `<table class="t">${cg([58,26,16])}<thead>
     <tr><th class="sh" colspan="3" style="height:28px">3. เงินกันไว้เบิกเหลื่อมปี</th></tr>
     <tr class="ch"><th style="height:23px"></th><th style="height:23px">จำนวนเงิน (ลบ.)</th><th style="height:23px">ร้อยละ</th></tr></thead><tbody>
     <tr><td>3.1 เงินกันไว้เบิกเหลื่อมปีทั้งสิ้น</td><td>${hasCarry?f4(v31):'-'}</td><td></td></tr>
     <tr class="hl last"><td>3.2 ผลการเบิกจ่ายเงินกันไว้เบิกเหลื่อมปี</td><td>${hasCarry?f4(v32):'-'}</td><td>${hasCarry?f2(rc):'-'}</td></tr></tbody></table>`;
-  const t2 = `<table class="t sm">${cg([19,13,17.5,17.5,16,17])}<thead>
+  const t2 = `<table class="t sm">${cg([16,13,16,16,17,22])}<thead>
     <tr><th class="sh" colspan="6" style="height:28px;font-size:12px;padding-left:5px">2.การโอนเงินจัดสรรและ/หรือการเปลี่ยนแปลงเงินจัดสรร</th></tr>
     <tr class="ch ch2"><th style="height:40px"></th><th>จำนวนรายการ</th><th>อำนาจ ลงป.<br>(ลบ.)</th><th>อำนาจ สรก.<br>(ลบ.)</th><th>รวมทั้งสิ้น<br>(ลบ.)</th><th>ร้อยละต่อ<br>${LBL}</th></tr></thead><tbody>
     <tr class="hl last"><td style="height:25px">โอนเปลี่ยนแปลง</td><td>-</td><td>-</td><td>-</td><td>${f4(xfer)}</td><td>${f2(rx)}</td></tr></tbody></table>`;
-  const t4 = `<table class="t sm">${cg([36,15,17,18.5,13.5])}<thead>
+  const t4 = `<table class="t sm">${cg([33,16,18,19,14])}<thead>
     <tr><th class="sh" colspan="5" style="height:30px;font-size:12px;padding-left:5px">4. ผลการดำเนินงานตามเป้าหมายการให้บริการ</th></tr>
     <tr class="ch"><th style="height:22px;line-height:1.2"></th><th style="line-height:1.2">จำนวนทั้งหมด</th><th style="line-height:1.2">บรรลุเป้าหมาย</th><th style="line-height:1.2">ไม่บรรลุเป้าหมาย</th><th style="line-height:1.2">ร้อยละที่ได้</th></tr></thead><tbody>
     ${kinds.map(([lab,k])=>{const [t,a,n,,avg]=pf(k);return `<tr><td>${lab}</td><td>${t?t:'-'}</td><td>${t?(a||'-'):'-'}</td><td>${t?(n||'-'):'-'}</td><td>${t?f2(avg):'-'}</td></tr>`}).join('')}
     <tr class="hl last"><td>รวมทั้งสิ้น</td><td>${pfTot[0]||'-'}</td><td>${pfTot[0]?(pfTot[1]||'-'):'-'}</td><td>${pfTot[0]?(pfTot[2]||'-'):'-'}</td><td>${pfTot[0]?f2(perfPct):'-'}</td></tr></tbody></table>`;
-  const t5 = `<table class="t5">${cg([51,16.3,16.3,16.4])}<thead><tr><th>5. มิติการประเมินศักยภาพฯ</th><th>ผลการประเมิน</th><th>คะแนนเต็ม</th><th>คะแนนที่ได้รับ</th></tr></thead><tbody>
+  const t5 = `<table class="t5">${cg([46,20,16,18])}<thead><tr><th>5. มิติการประเมินศักยภาพฯ</th><th>ผลการประเมิน</th><th>คะแนนเต็ม</th><th>คะแนนที่ได้รับ</th></tr></thead><tbody>
     ${dims.map(x=>`<tr><td>${x.t}</td><td>${x.v}</td><td>${x.max}</td><td>${sf(x.s)}</td></tr>`).join('')}
     <tr class="tot"><td>รวมทั้งสิ้น</td><td>-</td><td>100</td><td>${sf(total)}</td></tr></tbody></table>`;
 
@@ -415,7 +423,7 @@ async function saveNote(code,text){
 async function render(m,d){
   CUR = {m,d};
   const code = d[0];
-  $('report').innerHTML = buildHTML(m,d,'',false); fit();
+  $('report').innerHTML = buildHTML(m,d,'',false); fit(); fitText($('report')); if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{ if(CUR&&CUR.d[0]===code) fitText($('report')); });
   $('srcNote').textContent = 'หน่วย: ล้านบาท (ลบ.)';
   const box = $('noteBox'); box.disabled = true;
   const text = await loadNote(code);
@@ -433,7 +441,7 @@ async function render(m,d){
 let BUSY = false;
 const safeName = t => String(t).replace(/[\\/:*?"<>|\u0000-\u001f]/g,'').replace(/\s+/g,' ').trim().slice(0,80);
 async function pdfBlob(holder,m,d,note,scale){
-  holder.innerHTML = buildHTML(m,d,note,true);
+  holder.innerHTML = buildHTML(m,d,note,true); fitText(holder);
   const cv = await html2canvas(holder,{scale,backgroundColor:'#ffffff',useCORS:true,width:794,height:1123,windowWidth:1000});
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({unit:'pt',format:'a4',orientation:'portrait'});
