@@ -46,32 +46,62 @@ for k, g in itertools.groupby(rows, key=lambda r: str(r[0])[:2]):
     mins.append({'code': k, 'name': n, 'depts': g})
 
 # ---------- 2) ผลการดำเนินงาน (KPI) ----------
+# กติกานับตัวชี้วัด (สำคัญ):
+#   - นับเฉพาะตัวที่ "มีผลงาน" (คอลัมน์ ผลงาน เป็นตัวเลข รวมค่า 0 ซึ่งถือว่าได้ 0 จริง = ไม่บรรลุ)
+#   - ผลงานที่เป็นค่าว่าง / - / N/A / ข้อความ (เช่น "รายงานผลไตรมาส 4", "รอรายงาน") = ตัวชี้วัดไม่สมบูรณ์ ไม่นับ
+#   - ผลงานแบบอัตราส่วน/หลายค่า เช่น 18/1, 563,060/50,000 ถือว่ามีผลงาน (นับ)
+#   - ดังนั้น จำนวนทั้งหมด = บรรลุ + ไม่บรรลุ เสมอ
+#   - ร้อยละที่ได้ = ค่าเฉลี่ยของ "ร้อยละที่ใช้คำนวณ (สูงสุด 100)" เฉพาะตัวที่นับ
 kw = openpyxl.load_workbook(os.path.join(data_dir, 'KPI_summaryv2.xlsx'), data_only=True)
-for s in ('สรุปรายหน่วยงาน', 'รายตัวชี้วัด'):
-    if s not in kw.sheetnames: die(f'KPI_summaryv2.xlsx ไม่มีชีท "{s}"')
-det = collections.defaultdict(lambda: collections.defaultdict(list))
-# TYPE = {'เชิงปริมาณ': 'quant', 'เชิงคุณภาพ': 'qual'}
+if 'รายตัวชี้วัด' not in kw.sheetnames: die('KPI_summaryv2.xlsx ไม่มีชีท "รายตัวชี้วัด"')
 TYPE = {
-    'เชิงปริมาณ': 'quant',
-    'ปริมาณ': 'quant',
-    'เชิงคุณภาพ': 'qual',
-    'คุณภาพ': 'qual'
+    'เชิงปริมาณ': 'quant', 'ปริมาณ': 'quant',
+    'เชิงคุณภาพ': 'qual',  'คุณภาพ': 'qual',
+    'เชิงเวลา': 'time',    'เวลา': 'time',
+    'เชิงต้นทุน': 'cost',  'ต้นทุน': 'cost',
 }
+NUMLIKE = re.compile(r'^[\d.,/\-\s%]+$')          # ตัวเลข หรืออัตราส่วน เช่น 18/1  563,060/50,000
+
+def has_result(v):
+    """ผลงานนี้ถือว่ามีผลหรือไม่ (0 ถือว่ามี)"""
+    if v is None or isinstance(v, bool): return False
+    if isinstance(v, (int, float)): return True
+    s = str(v).strip()
+    if not s or s.upper() in ('-', 'N/A', 'NA', '#N/A', 'NONE'): return False
+    return bool(NUMLIKE.match(s)) and any(ch.isdigit() for ch in s)
+
+def code5(v):
+    s = str(v).split()[0].strip()
+    return s.zfill(5) if s.isdigit() else s
+
+acc = collections.defaultdict(lambda: collections.defaultdict(list))   # code -> type -> [(achieved, pct)]
+skipped = collections.Counter()          # code -> จำนวนที่ไม่นับ
+skipped_k = collections.Counter()        # (code, type) -> จำนวนที่ไม่นับ
 for r in kw['รายตัวชี้วัด'].iter_rows(min_row=2, values_only=True):
-    if r[0] and r[5] in TYPE: det[str(r[0]).split()[0]][TYPE[r[5]]].append(r)
+    if not r[0] or r[5] not in TYPE: continue
+    code, k = code5(r[0]), TYPE[r[5]]
+    if not has_result(r[7]):
+        skipped[code] += 1; skipped_k[(code, k)] += 1; continue
+    pc = r[9] if isinstance(r[9], (int, float)) and not isinstance(r[9], bool) else 0.0
+    acc[code][k].append((r[10] == 'บรรลุ', max(0.0, min(100.0, float(pc)))))
+
 PERF = {}
-for s in kw['สรุปรายหน่วยงาน'].iter_rows(min_row=2, values_only=True):
-    if not s[0] or not isinstance(s[8], (int, float)): continue   # ข้ามแถวรวม/หมายเหตุ
-    code = str(s[0]).split()[0]
-    p = {'pct': round(float(s[8]), 4)}
-    for k, rs in det[code].items():
-        pc = [x[9] for x in rs if isinstance(x[9], (int, float))]
-        p[k] = [len(rs), sum(x[10] == 'บรรลุ' for x in rs), sum(x[10] == 'ไม่บรรลุ' for x in rs),
-                sum(x[10] == 'ไม่มีผล' for x in rs), round(sum(pc) / len(pc), 4) if pc else 0]
+for code, kinds in acc.items():
+    p, allpc = {}, []
+    for k, items in kinds.items():
+        ach = sum(1 for a, _ in items if a)
+        pcs = [x for _, x in items]
+        # [จำนวนทั้งหมด(=บรรลุ+ไม่บรรลุ), บรรลุ, ไม่บรรลุ, ไม่นับ(ไม่มีผลงาน), ร้อยละเฉลี่ย]
+        p[k] = [len(items), ach, len(items) - ach, skipped_k.get((code, k), 0), round(sum(pcs) / len(pcs), 4)]
+        allpc += pcs
+    p['pct'] = round(sum(allpc) / len(allpc), 4) if allpc else 0.0
     PERF[code] = p
+for code in skipped:                       # หน่วยที่ทุกตัวไม่มีผลงาน
+    PERF.setdefault(code, {'pct': 0.0})
 known = {d[0] for m in mins for d in m['depts']}
 missing = [c for c in PERF if c not in known]
 if missing: print('WARNING: รหัสใน KPI ที่ไม่พบในไฟล์งบ:', missing)
+print(f'  KPI: ตัวชี้วัดที่ไม่นับ (ไม่มีผลงาน) {sum(skipped.values())} ตัว ใน {len(skipped)} หน่วยงาน')
 
 # ---------- 3) ชื่อกระทรวงที่ถูกต้อง (ตามรหัส 2 หลักแรก) ----------
 # แก้เฉพาะชื่อกระทรวงที่แสดงในดรอปดาวน์ ลำดับ/การจัดกลุ่ม/ข้อมูลอื่นไม่เปลี่ยน
