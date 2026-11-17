@@ -310,7 +310,8 @@ function fitText(root){
   root.querySelectorAll('.t th:not(.sh),.t td,.t5 th,.t5 td').forEach(c=>{
     c.style.fontSize='';
     let fs=parseFloat(getComputedStyle(c).fontSize);
-    while (c.scrollWidth>c.clientWidth+0.5 && fs>7){ fs-=0.25; c.style.fontSize=fs+'px'; }
+    const floor = c.tagName==='TD' ? 9.25 : 8.25;
+    while (c.scrollWidth>c.clientWidth+0.5 && fs>floor){ fs-=0.25; c.style.fontSize=fs+'px'; }
   });
 }
 /* ===== รายงาน ===== */
@@ -355,7 +356,7 @@ function buildHTML(m,d,note,pdf){
   const cg = a=>`<colgroup>${a.map(w=>`<col style="width:${w}%">`).join('')}</colgroup>`;
   const row = (lab,a,b,cc,cls='')=>`<tr class="${cls}"><td>${lab}</td><td>${a??''}</td><td>${b??''}</td><td>${cc??''}</td></tr>`;
   const lab12 = c.hasPb ? '1.2 วงเงินงบประมาณ หลัง พรบ โอน' : '1.2 วงเงินงบประมาณสุทธิหลังโอนเปลี่ยนแปลง';
-  const t1 = `<table class="t">${cg([50,15,14,21])}<thead>
+  const t1 = `<table class="t">${cg([55,14.5,12.5,18])}<thead>
     <tr><th class="sh" colspan="4" style="height:34px">1.งบประมาณรายจ่ายประจำปีงบประมาณ พ.ศ. ${CONFIG.FISCAL_YEAR}</th></tr>
     <tr class="ch"><th style="height:42px"></th><th>จำนวนเงิน<br>(ลบ.)</th><th>ร้อยละต่อ<br>พรบ.</th><th>ร้อยละต่อ<br>${LBL}</th></tr></thead><tbody>
     ${row('1.1 วงเงินงบประมาณตาม พรบ. งบประมาณรายจ่ายประจำปี',f4(v11),'','')}
