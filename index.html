@@ -249,12 +249,24 @@ function donut(o){
     g = `<circle cx="${cx}" cy="${cy}" r="${mid}" fill="none" stroke="#d9d9d9" stroke-width="${sw}"/>`;
     if (empty) html += lab(w,cx,cy,esc(empty),'c','k');
   } else {
-    segs.forEach(s=>{
-      const v=Math.max(0,s.v); if(!v) return;
-      const len=v/total*C;
-      g += `<circle cx="${cx}" cy="${cy}" r="${mid}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(${start-90} ${cx} ${cy})"/>`;
-      const a=(start+(acc+v/2)/total*360)*DEG; acc+=v; off+=len;
-      labels.push({a,lines:[].concat(s.text),line:s.line||'#000'});
+    /* วาดเป็นรูปเสี้ยว (path) แทนเส้น dasharray เพื่อให้เสถียรทุกขนาด/ทุกการย่อขยาย
+       เสี้ยวที่มีค่า > 0 แต่เล็กมาก จะได้มุมอย่างน้อย 2 องศาให้มองเห็น (หักจากเสี้ยวที่ใหญ่สุด) */
+    const act = segs.filter(s=>s.v>0).map(s=>({...s,deg:s.v/total*360}));
+    const MIN=2; let short=0;
+    act.forEach(s=>{ if(s.deg<MIN){ short+=MIN-s.deg; s.deg=MIN; } });
+    if(short>0){ const big=act.reduce((m,s)=>s.deg>m.deg?s:m,act[0]); big.deg-=short; }
+    const P=(rad,deg)=>{const t=deg*DEG;return [cx+rad*Math.sin(t),cy-rad*Math.cos(t)]};
+    const f=v=>v.toFixed(2);
+    let ang=start;
+    act.forEach(s=>{
+      const a0=ang, a1=ang+s.deg; ang=a1;
+      if(s.deg>=359.99){
+        g+=`<path fill="${s.color}" fill-rule="evenodd" d="M${cx-R},${cy}a${R},${R} 0 1,0 ${2*R},0a${R},${R} 0 1,0 ${-2*R},0ZM${cx-r},${cy}a${r},${r} 0 1,1 ${2*r},0a${r},${r} 0 1,1 ${-2*r},0Z"/>`;
+      } else {
+        const o0=P(R,a0),o1=P(R,a1),i1=P(r,a1),i0=P(r,a0), lg=s.deg>180?1:0;
+        g+=`<path fill="${s.color}" stroke="${s.color}" stroke-width=".4" stroke-linejoin="round" d="M${f(o0[0])},${f(o0[1])}A${R},${R} 0 ${lg} 1 ${f(o1[0])},${f(o1[1])}L${f(i1[0])},${f(i1[1])}A${r},${r} 0 ${lg} 0 ${f(i0[0])},${f(i0[1])}Z"/>`;
+      }
+      labels.push({a:(a0+s.deg/2)*DEG,lines:[].concat(s.text),line:s.line||'#000'});
     });
   }
   ['r','l'].forEach(side=>{
