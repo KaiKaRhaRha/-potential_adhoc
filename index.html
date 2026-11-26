@@ -326,9 +326,9 @@ const SCORE = {
 };
 function calc(d){
   const [code,name,v11,v12,v14,v15,v16,v17,v18x,v31,v32,p32x,xfer,pbx,afterPb] = d;
-  const hasPb = pbx!==0 && afterPb>0;
-  const base = hasPb ? afterPb : v12;
-  const LBL = hasPb ? 'วงเงิน หลัง พรบ โอน' : 'วงเงินหลังโอน';
+  const hasPb = pbx!==0 && afterPb>0;      // มี พรบ โอน: ใช้เป็นข้อความในหมายเหตุเท่านั้น
+  const base = v12;                        // ทุกกรณีใช้ "วงเงินสุทธิหลังโอน" คำนวณ
+  const LBL = 'วงเงินหลังโอน';
   const P = PERF[code] || {};
   const pf = k => P[k] || [0,0,0,0,0];
   const kinds = [['4.1 เชิงปริมาณ','quant'],['4.2 เชิงคุณภาพ','qual'],['4.3 เชิงเวลา','time'],['4.4 เชิงต้นทุน','cost']];
@@ -347,7 +347,7 @@ function calc(d){
     {t:'5.5 มิติเงินที่คาดว่าจะพับตก (ข้อ 1.8)', v:f2(rl), max:10, s:SCORE.inv(rl), n:'มิติเงินที่คาดว่าจะพับตก'},
     {t:'5.6 มิติผลการดำเนินงาน (ข้อ 4)', v:f2(perfPct), max:40, s:SCORE.perf(perfPct), n:'มิติผลการดำเนินงาน'}];
   const total = dims.reduce((a,x)=>a+x.s,0);
-  return {code,name,v11,v12,v14,v15,v16,v17,v18,v31,v32,xfer,hasPb,base,LBL,kinds,pf,pfTot,perfPct,r14,r17,rx,rc,rl,hasCarry,dims,total};
+  return {afterPb,code,name,v11,v12,v14,v15,v16,v17,v18,v31,v32,xfer,hasPb,base,LBL,kinds,pf,pfTot,perfPct,r14,r17,rx,rc,rl,hasCarry,dims,total};
 }
 function buildHTML(m,d,note,pdf){
   const c = calc(d);
@@ -355,7 +355,7 @@ function buildHTML(m,d,note,pdf){
   const sf = x=>Number.isInteger(x)?String(x):f2(x);
   const cg = a=>`<colgroup>${a.map(w=>`<col style="width:${w}%">`).join('')}</colgroup>`;
   const row = (lab,a,b,cc,cls='')=>`<tr class="${cls}"><td>${lab}</td><td>${a??''}</td><td>${b??''}</td><td>${cc??''}</td></tr>`;
-  const lab12 = c.hasPb ? '1.2 วงเงินงบประมาณ หลัง พรบ โอน' : '1.2 วงเงินงบประมาณสุทธิหลังโอนเปลี่ยนแปลง';
+  const lab12 = '1.2 วงเงินงบประมาณสุทธิหลังโอนเปลี่ยนแปลง';
   const t1 = `<table class="t">${cg([55,14.5,12.5,18])}<thead>
     <tr><th class="sh" colspan="4" style="height:34px">1.งบประมาณรายจ่ายประจำปีงบประมาณ พ.ศ. ${CONFIG.FISCAL_YEAR}</th></tr>
     <tr class="ch"><th style="height:42px"></th><th>จำนวนเงิน<br>(ลบ.)</th><th>ร้อยละต่อ<br>พรบ.</th><th>ร้อยละต่อ<br>${LBL}</th></tr></thead><tbody>
@@ -396,9 +396,10 @@ function buildHTML(m,d,note,pdf){
   const d2 = donut({w:287,h:205,cx:137,cy:107,R:72,r:42,start:125,title:'ผลการดำเนินงาน',ty:13,
     segs: hasPerf ? [{v:ok,color:'#37b3ac',text:['บรรลุเป้าหมาย',`[${f2(ok)}%]`]},{v:bad,color:'#d4a800',line:'#8a8a00',text:['ไม่บรรลุเป้าหมาย',`[${f2(bad)}%]`]}] : [],
     empty:'ไม่มีข้อมูล (0.00%)'});
+  const auto = c.hasPb ? `วงเงินหลัง พ.ร.บ. โอน จำนวน ${f4(c.afterPb)} ล้านบาท` : '';
   const noteBlock = pdf
-    ? `<div class="a notetxt">${note.trim()?esc(note):''}</div>`
-    : `<div class="a noteed"><textarea id="noteBox" class="ctl note-in" rows="3" style="width:100%;height:56px" placeholder="พิมพ์หมายเหตุของหน่วยงานนี้" aria-label="หมายเหตุ">${esc(note)}</textarea>
+    ? `<div class="a notetxt">${esc(auto)}${auto&&note.trim()?'\n':''}${note.trim()?esc(note):''}</div>`
+    : `${auto?`<div class="a notetxt" style="top:992px">${esc(auto)}</div>`:''}<div class="a noteed" style="top:${auto?1012:992}px"><textarea id="noteBox" class="ctl note-in" rows="3" style="width:100%;height:50px" placeholder="พิมพ์หมายเหตุของหน่วยงานนี้" aria-label="หมายเหตุ">${esc(note)}</textarea>
        <div style="margin-top:6px;display:flex;gap:10px;align-items:center"><button class="btn" id="btnNote" type="button" style="height:30px;padding:0 14px;font-size:12px">จัดเก็บหมายเหตุ</button><span class="hint" id="noteSt" style="margin:0"></span></div></div>`;
   return `
     <div class="a ttl">รายงานการประเมินศักยภาพการใช้จ่ายงบประมาณประจำปีงบประมาณ พ.ศ. ${CONFIG.FISCAL_YEAR}</div>
